@@ -191,11 +191,11 @@ async function shareImage(variant, senderName = null) {
   return "downloaded";
 }
 
-function useCountdown(initialSeconds) {
-  const [seconds, setSeconds] = useState(initialSeconds);
+function useCountdown(createdAt) {
+  const getLeft = () => { if (!createdAt) return 0; const e = new Date(createdAt).getTime() + 86400000; const l = Math.floor((e - Date.now())/1000); return l > 0 ? l : 0; }; const [seconds, setSeconds] = useState(getLeft);
   useEffect(() => {
-    if (seconds <= 0) return;
-    const t = setInterval(() => setSeconds(s => s-1), 1000);
+    
+    const t = setInterval(() => setSeconds(getLeft()), 1000);
     return () => clearInterval(t);
   }, [seconds]);
   const h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
@@ -513,6 +513,17 @@ export default function CrushDrop() {
     .status-note{text-align:center;font-size:12px;color:#C9A0B4;margin-top:6px;line-height:1.6;}
     .premium-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.15));border:1px solid rgba(255,165,0,0.3);border-radius:100px;padding:3px 10px;font-size:11px;font-weight:600;color:#B8860B;margin-bottom:10px;}
     .loading-box{text-align:center;padding:40px 20px;color:#C9A0B4;font-size:14px;}
+    .how-it-works{background:rgba(253,232,238,0.4);border-radius:20px;padding:18px 16px;margin:18px 0 10px;}
+    .hiw-title{font-size:11px;font-weight:600;color:#B08898;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+    .hiw-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;}
+    .hiw-row:last-child{margin-bottom:0;}
+    .hiw-num{width:28px;height:28px;min-width:28px;background:linear-gradient(135deg,#E8728A,#D45A75);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
+    .hiw-step-title{font-size:13.5px;font-weight:600;color:#3D2B35;margin-bottom:2px;}
+    .hiw-step-desc{font-size:12px;color:#B08898;line-height:1.5;}
+    .trust-footer{margin:8px 0 4px;text-align:center;}
+    .trust-row{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-bottom:6px;}
+    .trust-row span{font-size:11px;color:#B08898;}
+    .trust-links{text-align:center;}
     .pay-btn-wrap{margin-top:6px;}
     .error-text{color:#E8728A;font-size:13px;margin-bottom:10px;text-align:center;}
   `;
@@ -539,6 +550,32 @@ export default function CrushDrop() {
         ))}
       </div>
       <button className="btn btn-primary" onClick={()=>setScreen(SCREENS.FORM)}>Send a secret message — FREE 💗</button>
+
+      <div className="how-it-works">
+        <div className="hiw-title">How it works</div>
+        {[
+          ["1","You write a message","Type your feelings — your name stays hidden"],
+          ["2","We deliver the link","Share the unique link with your crush"],
+          ["3","They choose to reveal","They pay ₹49 to find out who sent it"],
+        ].map(([num,title,desc])=>(
+          <div className="hiw-row" key={num}>
+            <div className="hiw-num">{num}</div>
+            <div><div className="hiw-step-title">{title}</div><div className="hiw-step-desc">{desc}</div></div>
+          </div>
+        ))}
+      </div>
+
+      <div className="trust-footer">
+        <div className="trust-row">
+          <span>🔒 100% Anonymous</span>
+          <span>🇮🇳 Made in India</span>
+          <span>✅ Secure Payments</span>
+        </div>
+        <div className="trust-links">
+          <span style={{color:"#C9A0B4",fontSize:11}}>Questions? crushdrop.vercel.app/about</span>
+        </div>
+      </div>
+
       <div className="demo-row">
         <span style={{color:"#C9A0B4",fontSize:12}}>See demo:</span>
         <button className="demo-chip" onClick={goReceiver}>👁 Receiver's view</button>
@@ -601,13 +638,13 @@ export default function CrushDrop() {
 
   // ── RECEIVER ────────────────────────────────────────────
   const Receiver = () => {
-    const timeLeft = useCountdown(85620);
+    const timeLeft = useCountdown(msg?.created_at);
     if (receiverLoading) return (
       <div className="card"><div className="loading-box"><div style={{fontSize:32,marginBottom:12}}>💌</div><div>Loading your message...</div></div></div>
     );
     const msg = receiverMsg;
-    const displayMessage = msg?.message || "Every time you smile, I completely forget what I was going to say. I've been meaning to tell you this for a long time... 🥺";
-    const displayName = msg?.receiver_name || "Priya";
+    const displayMessage = msg?.message || "";
+    const displayName = msg?.receiver_name || "";
     const revealEnabled = msg ? msg.reveal_enabled : true;
     const isRevealed = revealed || msg?.is_revealed;
     const senderName = msg?.sender_name;
@@ -618,11 +655,13 @@ export default function CrushDrop() {
         <div style={{textAlign:"center",marginBottom:6}}><div className="badge">💌 Someone sent you a secret message</div></div>
         <h2 style={{marginBottom:4}}>Hey {displayName} 🌸</h2>
         <p className="sub">Someone has been thinking about you...</p>
-        <div className="countdown-box">
-          <div><div className="countdown-label">⚠️ Reveal expires in</div></div>
-          <div className="countdown-timer">{timeLeft}</div>
-          <div style={{fontSize:18}}>🔥</div>
-        </div>
+        {msg && timeLeft && (
+          <div className="countdown-box">
+            <div><div className="countdown-label">⚠️ Reveal expires in</div></div>
+            <div className="countdown-timer">{timeLeft}</div>
+            <div style={{fontSize:18}}>🔥</div>
+          </div>
+        )}
         <div className="msg-card">
           <div className="anon-label">Anonymous message</div>
           <div style={{position:"relative"}}>
@@ -659,11 +698,7 @@ export default function CrushDrop() {
                 <p style={{textAlign:"center",fontSize:12,color:"#C9A0B4",marginTop:10}}>UPI · Cards · Net Banking · Wallets</p>
               </>
             )}
-            <div className="more-crushes-box" onClick={()=>alert("Coming soon! 🌸")}>
-              <div className="crush-avatars"><div className="crush-avatar">🙈</div><div className="crush-avatar">🙈</div></div>
-              <div className="more-crushes-title">🤫 2 more people have a secret crush on you</div>
-              <div className="more-crushes-sub">₹49 per reveal · Tap to unlock →</div>
-            </div>
+
           </>
         )}
       </div>
