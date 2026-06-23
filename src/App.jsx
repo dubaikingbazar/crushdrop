@@ -639,9 +639,6 @@ export default function CrushDrop() {
     </div>
   );
 
-  // ── FORM ──────────────────────────────────────────────────
-  const Form = () => <FormScreen form={form} setForm={setForm} setScreen={setScreen} />;
-
   // ── PAYMENT (only for premium) ─────────────────────────────
   const Payment = () => (
     <div className="card">
@@ -853,7 +850,7 @@ export default function CrushDrop() {
   const render = () => {
     switch(screen) {
       case SCREENS.LANDING:  return <Landing/>;
-      case SCREENS.FORM:     return <Form/>;
+      case SCREENS.FORM:     return <FormScreen form={form} setForm={setForm} setScreen={setScreen}/>;
       case SCREENS.PAYMENT:  return <Payment/>;
       case SCREENS.SENT:     return <Sent/>;
       case SCREENS.RECEIVER: return <Receiver/>;
