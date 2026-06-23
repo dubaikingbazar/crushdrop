@@ -117,7 +117,7 @@ const petals = Array.from({ length: 10 }, (_, i) => ({
 }));
 
 // ── Canvas ──────────────────────────────────────────────────
-function generateStoryCanvas(variant = "sender") {
+function generateStoryCanvas(variant = "sender", senderName = null) {
   const canvas = document.createElement("canvas");
   canvas.width = 1080; canvas.height = 1920;
   const ctx = canvas.getContext("2d");
@@ -142,6 +142,9 @@ function generateStoryCanvas(variant = "sender") {
   if (variant === "sender") {
     wrapText(ctx, "I just sent my crush", cx, cardY+320, 740, 86);
     wrapText(ctx, "an anonymous message 😏", cx, cardY+406, 740, 86);
+  } else if (variant === "receiver" && senderName) {
+    wrapText(ctx, `${senderName} secretly`, cx, cardY+320, 740, 86);
+    wrapText(ctx, "has a crush on me 🥺", cx, cardY+406, 740, 86);
   } else {
     wrapText(ctx, "Someone secretly", cx, cardY+320, 740, 86);
     wrapText(ctx, "has a crush on me 🥺", cx, cardY+406, 740, 86);
@@ -175,8 +178,8 @@ function wrapText(ctx, text, x, y, maxW, lineH) {
   ctx.fillText(line.trim(),x,cy);
 }
 
-async function shareImage(variant) {
-  const canvas = generateStoryCanvas(variant);
+async function shareImage(variant, senderName = null) {
+  const canvas = generateStoryCanvas(variant, senderName);
   const blob = await new Promise(res => canvas.toBlob(res,"image/png"));
   const file = new File([blob],"crushdrop-story.png",{type:"image/png"});
   if (navigator.canShare && navigator.canShare({files:[file]})) {
@@ -256,6 +259,7 @@ export default function CrushDrop() {
   const [form, setForm]               = useState(INITIAL_FORM);
   const [revealed, setRevealed]       = useState(false);
   const [shareVariant, setShareVariant] = useState("sender");
+  const [shareSenderName, setShareSenderName] = useState(null);
   const [copied, setCopied]           = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [messageBlurred, setMessageBlurred] = useState(true);
@@ -290,7 +294,7 @@ export default function CrushDrop() {
   };
 
   const goLanding = () => { resetAll(); setScreen(SCREENS.LANDING); };
-  const goShare = (variant) => { setShareVariant(variant); setShareStatus(""); setScreen(SCREENS.SHARE); };
+  const goShare = (variant, senderName = null) => { setShareVariant(variant); setShareSenderName(senderName); setShareStatus(""); setScreen(SCREENS.SHARE); };
   const goReceiver = () => { setRevealed(false); setMessageBlurred(true); setReceiverMsg(null); setCurrentMsgId(null); setScreen(SCREENS.RECEIVER); };
 
   const handleSend = async () => {
@@ -393,7 +397,7 @@ export default function CrushDrop() {
 
   const handleNativeShare = async () => {
     setShareStatus("generating");
-    const result = await shareImage(shareVariant);
+    const result = await shareImage(shareVariant, shareSenderName);
     setShareStatus(result);
   };
 
@@ -638,7 +642,7 @@ export default function CrushDrop() {
             <div style={{fontSize:13,color:"#C9A0B4",marginBottom:4}}>Your secret admirer is...</div>
             <div className="reveal-name">{senderName || "Anonymous 🙈"}</div>
             {!senderName && <div style={{fontSize:13,color:"#B08898",marginBottom:12}}>They chose to stay anonymous 🤫</div>}
-            <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10,marginTop:16}} onClick={()=>goShare("receiver")}>📸 Share this moment!</button>
+            <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10,marginTop:16}} onClick={()=>goShare("receiver", senderName)}>📸 Share this moment!</button>
             <button className="btn btn-ghost" onClick={goLanding}>Send your own crush message 💌</button>
           </div>
         ) : (
