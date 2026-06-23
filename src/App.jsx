@@ -117,7 +117,7 @@ const petals = Array.from({ length: 10 }, (_, i) => ({
 }));
 
 // ── Canvas ──────────────────────────────────────────────────
-function generateStoryCanvas(variant = "sender", senderName = null) {
+function generateStoryCanvas(variant = "sender") {
   const canvas = document.createElement("canvas");
   canvas.width = 1080; canvas.height = 1920;
   const ctx = canvas.getContext("2d");
@@ -142,9 +142,6 @@ function generateStoryCanvas(variant = "sender", senderName = null) {
   if (variant === "sender") {
     wrapText(ctx, "I just sent my crush", cx, cardY+320, 740, 86);
     wrapText(ctx, "an anonymous message 😏", cx, cardY+406, 740, 86);
-  } else if (variant === "receiver" && senderName) {
-    wrapText(ctx, `${senderName} secretly`, cx, cardY+320, 740, 86);
-    wrapText(ctx, "has a crush on me 🥺", cx, cardY+406, 740, 86);
   } else {
     wrapText(ctx, "Someone secretly", cx, cardY+320, 740, 86);
     wrapText(ctx, "has a crush on me 🥺", cx, cardY+406, 740, 86);
@@ -178,8 +175,8 @@ function wrapText(ctx, text, x, y, maxW, lineH) {
   ctx.fillText(line.trim(),x,cy);
 }
 
-async function shareImage(variant, senderName = null) {
-  const canvas = generateStoryCanvas(variant, senderName);
+async function shareImage(variant) {
+  const canvas = generateStoryCanvas(variant);
   const blob = await new Promise(res => canvas.toBlob(res,"image/png"));
   const file = new File([blob],"crushdrop-story.png",{type:"image/png"});
   if (navigator.canShare && navigator.canShare({files:[file]})) {
@@ -192,12 +189,18 @@ async function shareImage(variant, senderName = null) {
 }
 
 function useCountdown(createdAt) {
-  const getLeft = () => { if (!createdAt) return 0; const e = new Date(createdAt).getTime() + 86400000; const l = Math.floor((e - Date.now())/1000); return l > 0 ? l : 0; }; const [seconds, setSeconds] = useState(getLeft);
+  const getLeft = () => {
+    if (!createdAt) return 0;
+    const expiry = new Date(createdAt).getTime() + 24*60*60*1000;
+    const left = Math.floor((expiry - Date.now()) / 1000);
+    return left > 0 ? left : 0;
+  };
+  const [seconds, setSeconds] = useState(getLeft);
   useEffect(() => {
-    
     const t = setInterval(() => setSeconds(getLeft()), 1000);
     return () => clearInterval(t);
-  }, [seconds]);
+  }, [createdAt]);
+  if (seconds <= 0) return null;
   const h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
   const pad = n => String(n).padStart(2,"0");
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
@@ -259,7 +262,6 @@ export default function CrushDrop() {
   const [form, setForm]               = useState(INITIAL_FORM);
   const [revealed, setRevealed]       = useState(false);
   const [shareVariant, setShareVariant] = useState("sender");
-  const [shareSenderName, setShareSenderName] = useState(null);
   const [copied, setCopied]           = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [messageBlurred, setMessageBlurred] = useState(true);
@@ -294,7 +296,7 @@ export default function CrushDrop() {
   };
 
   const goLanding = () => { resetAll(); setScreen(SCREENS.LANDING); };
-  const goShare = (variant, senderName = null) => { setShareVariant(variant); setShareSenderName(senderName); setShareStatus(""); setScreen(SCREENS.SHARE); };
+  const goShare = (variant) => { setShareVariant(variant); setShareStatus(""); setScreen(SCREENS.SHARE); };
   const goReceiver = () => { setRevealed(false); setMessageBlurred(true); setReceiverMsg(null); setCurrentMsgId(null); setScreen(SCREENS.RECEIVER); };
 
   const handleSend = async () => {
@@ -397,7 +399,7 @@ export default function CrushDrop() {
 
   const handleNativeShare = async () => {
     setShareStatus("generating");
-    const result = await shareImage(shareVariant, shareSenderName);
+    const result = await shareImage(shareVariant);
     setShareStatus(result);
   };
 
@@ -513,17 +515,6 @@ export default function CrushDrop() {
     .status-note{text-align:center;font-size:12px;color:#C9A0B4;margin-top:6px;line-height:1.6;}
     .premium-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.15));border:1px solid rgba(255,165,0,0.3);border-radius:100px;padding:3px 10px;font-size:11px;font-weight:600;color:#B8860B;margin-bottom:10px;}
     .loading-box{text-align:center;padding:40px 20px;color:#C9A0B4;font-size:14px;}
-    .how-it-works{background:rgba(253,232,238,0.4);border-radius:20px;padding:18px 16px;margin:18px 0 10px;}
-    .hiw-title{font-size:11px;font-weight:600;color:#B08898;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
-    .hiw-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;}
-    .hiw-row:last-child{margin-bottom:0;}
-    .hiw-num{width:28px;height:28px;min-width:28px;background:linear-gradient(135deg,#E8728A,#D45A75);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
-    .hiw-step-title{font-size:13.5px;font-weight:600;color:#3D2B35;margin-bottom:2px;}
-    .hiw-step-desc{font-size:12px;color:#B08898;line-height:1.5;}
-    .trust-footer{margin:8px 0 4px;text-align:center;}
-    .trust-row{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-bottom:6px;}
-    .trust-row span{font-size:11px;color:#B08898;}
-    .trust-links{text-align:center;}
     .pay-btn-wrap{margin-top:6px;}
     .error-text{color:#E8728A;font-size:13px;margin-bottom:10px;text-align:center;}
   `;
@@ -550,32 +541,6 @@ export default function CrushDrop() {
         ))}
       </div>
       <button className="btn btn-primary" onClick={()=>setScreen(SCREENS.FORM)}>Send a secret message — FREE 💗</button>
-
-      <div className="how-it-works">
-        <div className="hiw-title">How it works</div>
-        {[
-          ["1","You write a message","Type your feelings — your name stays hidden"],
-          ["2","We deliver the link","Share the unique link with your crush"],
-          ["3","They choose to reveal","They pay ₹49 to find out who sent it"],
-        ].map(([num,title,desc])=>(
-          <div className="hiw-row" key={num}>
-            <div className="hiw-num">{num}</div>
-            <div><div className="hiw-step-title">{title}</div><div className="hiw-step-desc">{desc}</div></div>
-          </div>
-        ))}
-      </div>
-
-      <div className="trust-footer">
-        <div className="trust-row">
-          <span>🔒 100% Anonymous</span>
-          <span>🇮🇳 Made in India</span>
-          <span>✅ Secure Payments</span>
-        </div>
-        <div className="trust-links">
-          <span style={{color:"#C9A0B4",fontSize:11}}>Questions? crushdrop.vercel.app/about</span>
-        </div>
-      </div>
-
       <div className="demo-row">
         <span style={{color:"#C9A0B4",fontSize:12}}>See demo:</span>
         <button className="demo-chip" onClick={goReceiver}>👁 Receiver's view</button>
@@ -643,8 +608,8 @@ export default function CrushDrop() {
       <div className="card"><div className="loading-box"><div style={{fontSize:32,marginBottom:12}}>💌</div><div>Loading your message...</div></div></div>
     );
     const msg = receiverMsg;
-    const displayMessage = msg?.message || "";
-    const displayName = msg?.receiver_name || "";
+    const displayMessage = msg?.message || "Every time you smile, I completely forget what I was going to say. I've been meaning to tell you this for a long time... 🥺";
+    const displayName = msg?.receiver_name || "Priya";
     const revealEnabled = msg ? msg.reveal_enabled : true;
     const isRevealed = revealed || msg?.is_revealed;
     const senderName = msg?.sender_name;
@@ -681,7 +646,7 @@ export default function CrushDrop() {
             <div style={{fontSize:13,color:"#C9A0B4",marginBottom:4}}>Your secret admirer is...</div>
             <div className="reveal-name">{senderName || "Anonymous 🙈"}</div>
             {!senderName && <div style={{fontSize:13,color:"#B08898",marginBottom:12}}>They chose to stay anonymous 🤫</div>}
-            <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10,marginTop:16}} onClick={()=>goShare("receiver", senderName)}>📸 Share this moment!</button>
+            <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10,marginTop:16}} onClick={()=>goShare("receiver")}>📸 Share this moment!</button>
             <button className="btn btn-ghost" onClick={goLanding}>Send your own crush message 💌</button>
           </div>
         ) : (
