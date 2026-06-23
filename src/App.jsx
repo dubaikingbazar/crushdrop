@@ -145,6 +145,41 @@ function useCountdown(initialSeconds) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+// ── Form Screen (outside main app to prevent keyboard dismiss on re-render) ──
+function FormScreen({ form, setForm, setScreen }) {
+  return (
+    <div className="card">
+      <button className="back-btn" onClick={() => setScreen(SCREENS.LANDING)}>← Back</button>
+      <div className="step-bar">{[true,false,false].map((d,i)=><div key={i} className={`step-seg ${d?"done":""}`}/>)}</div>
+      <h2 style={{textAlign:"left"}}>Your message ✍️</h2>
+      <p className="sub" style={{textAlign:"left",marginBottom:22}}>Sending is always free. We only use their contact to deliver it.</p>
+      <label className="label">Their name</label>
+      <input className="input" placeholder="e.g. Priya" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+      <label className="label">Their WhatsApp or email</label>
+      <input className="input" placeholder="98XXXXXXXX or priya@gmail.com" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/>
+      <label className="label">Your message</label>
+      <textarea className="input" placeholder="Every time you smile, I forget what I was going to say..." value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
+      <div className={`toggle-row ${form.reveal?"on":""}`} onClick={()=>setForm({...form,reveal:!form.reveal})}>
+        <div className={`pill-switch ${form.reveal?"on":""}`}/>
+        <div>
+          <div className="toggle-label">Let them reveal your name</div>
+          <div className="toggle-sub">They pay ₹49 to find out who sent this</div>
+        </div>
+      </div>
+      <div className={`toggle-row premium-row ${form.isPremium?"on":""}`} onClick={()=>setForm({...form,isPremium:!form.isPremium})}>
+        <div className={`pill-switch premium-pill ${form.isPremium?"on":""}`}/>
+        <div>
+          <div className="toggle-label">✨ Premium delivery — ₹49</div>
+          <div className="toggle-sub">Animated heart card + glow effects + priority send</div>
+        </div>
+      </div>
+      <button className="btn btn-primary" style={{marginTop:10}} onClick={()=>{if(form.name&&form.contact&&form.message) setScreen(form.isPremium ? SCREENS.PAYMENT : SCREENS.SENT);}}>
+        {form.isPremium ? "Continue to payment →" : "Send for FREE 💌"}
+      </button>
+    </div>
+  );
+}
+
 // ── Main App ────────────────────────────────────────────────
 export default function CrushDrop() {
   const [screen, setScreen]       = useState(SCREENS.LANDING);
@@ -605,42 +640,7 @@ export default function CrushDrop() {
   );
 
   // ── FORM ──────────────────────────────────────────────────
-  const Form = () => (
-    <div className="card">
-      <button className="back-btn" onClick={() => setScreen(SCREENS.LANDING)}>← Back</button>
-      <div className="step-bar">{[true,false,false].map((d,i)=><div key={i} className={`step-seg ${d?"done":""}`}/>)}</div>
-      <h2 style={{textAlign:"left"}}>Your message ✍️</h2>
-      <p className="sub" style={{textAlign:"left",marginBottom:22}}>Sending is always free. We only use their contact to deliver it.</p>
-      <label className="label">Their name</label>
-      <input className="input" placeholder="e.g. Priya" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
-      <label className="label">Their WhatsApp or email</label>
-      <input className="input" placeholder="98XXXXXXXX or priya@gmail.com" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/>
-      <label className="label">Your message</label>
-      <textarea className="input" placeholder="Every time you smile, I forget what I was going to say..." value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
-
-      {/* FEATURE 6: Reveal toggle */}
-      <div className={`toggle-row ${form.reveal?"on":""}`} onClick={()=>setForm({...form,reveal:!form.reveal})}>
-        <div className={`pill-switch ${form.reveal?"on":""}`}/>
-        <div>
-          <div className="toggle-label">Let them reveal your name</div>
-          <div className="toggle-sub">They pay ₹49 to find out who sent this</div>
-        </div>
-      </div>
-
-      {/* FEATURE 6: Premium message upsell toggle */}
-      <div className={`toggle-row premium-row ${form.isPremium?"on":""}`} onClick={()=>setForm({...form,isPremium:!form.isPremium})}>
-        <div className={`pill-switch premium-pill ${form.isPremium?"on":""}`}/>
-        <div>
-          <div className="toggle-label">✨ Premium delivery — ₹49</div>
-          <div className="toggle-sub">Animated heart card + glow effects + priority send</div>
-        </div>
-      </div>
-
-      <button className="btn btn-primary" style={{marginTop:10}} onClick={()=>{if(form.name&&form.contact&&form.message) setScreen(form.isPremium ? SCREENS.PAYMENT : SCREENS.SENT);}}>
-        {form.isPremium ? "Continue to payment →" : "Send for FREE 💌"}
-      </button>
-    </div>
-  );
+  const Form = () => <FormScreen form={form} setForm={setForm} setScreen={setScreen} />;
 
   // ── PAYMENT (only for premium) ─────────────────────────────
   const Payment = () => (
