@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+
+const APP_URL = "https://crushdrop.vercel.app";
 
 const SCREENS = {
   LANDING: "landing",
@@ -9,12 +11,12 @@ const SCREENS = {
   SHARE: "share",
 };
 
-const petals = Array.from({ length: 14 }, (_, i) => ({
-  left: `${Math.random() * 100}%`,
-  size: `${Math.random() * 14 + 10}px`,
-  duration: `${Math.random() * 8 + 7}s`,
-  delay: `${Math.random() * 8}s`,
-  opacity: Math.random() * 0.35 + 0.1,
+const petals = Array.from({ length: 10 }, (_, i) => ({
+  left: `${(i * 11 + 5) % 100}%`,
+  size: `${(i % 3) * 5 + 12}px`,
+  duration: `${(i % 4) * 2 + 8}s`,
+  delay: `${(i % 5) * 1.5}s`,
+  opacity: 0.15 + (i % 3) * 0.07,
 }));
 
 // ── Canvas story generator ──────────────────────────────────
@@ -71,11 +73,11 @@ function generateStoryCanvas(variant = "sender") {
   wrapText(ctx, "Find out who has a crush on you 👇", cx, cardY + 620, 760, 56);
   const pillY = cardY + 730;
   ctx.fillStyle = "rgba(232,114,138,0.12)";
-  roundRect(ctx, cx - 260, pillY, 520, 80, 40);
+  roundRect(ctx, cx - 300, pillY, 600, 80, 40);
   ctx.fillStyle = "#C9657D";
   ctx.font = "bold 40px Georgia, serif";
   ctx.textAlign = "center";
-  ctx.fillText("crushdrop.in", cx, pillY + 52);
+  ctx.fillText("crushdrop.vercel.app", cx, pillY + 52);
   ctx.fillStyle = "#C9A0B4";
   ctx.font = "36px Georgia, serif";
   ctx.fillText("CrushDrop · Anonymous confessions", cx, 1820);
@@ -119,7 +121,7 @@ async function shareImage(variant) {
   const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
   const file = new File([blob], "crushdrop-story.png", { type: "image/png" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: "CrushDrop", text: "Someone has a crush on you 👀 crushdrop.in" });
+    await navigator.share({ files: [file], title: "CrushDrop", text: `Someone has a crush on you 👀 ${APP_URL}` });
     return "shared";
   }
   const url = canvas.toDataURL("image/png");
@@ -145,7 +147,7 @@ function useCountdown(initialSeconds) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-// ── Form Screen (outside main app to prevent keyboard dismiss on re-render) ──
+// ── Form Screen ─────────────────────────────────────────────
 function FormScreen({ form, setForm, setScreen }) {
   return (
     <div className="card">
@@ -154,11 +156,32 @@ function FormScreen({ form, setForm, setScreen }) {
       <h2 style={{textAlign:"left"}}>Your message ✍️</h2>
       <p className="sub" style={{textAlign:"left",marginBottom:22}}>Sending is always free. We only use their contact to deliver it.</p>
       <label className="label">Their name</label>
-      <input className="input" placeholder="e.g. Priya" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+      <input
+        className="input"
+        placeholder="e.g. Priya"
+        value={form.name}
+        onChange={e=>setForm({...form,name:e.target.value})}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck="false"
+      />
       <label className="label">Their WhatsApp or email</label>
-      <input className="input" placeholder="98XXXXXXXX or priya@gmail.com" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/>
+      <input
+        className="input"
+        placeholder="98XXXXXXXX or priya@gmail.com"
+        value={form.contact}
+        onChange={e=>setForm({...form,contact:e.target.value})}
+        inputMode="email"
+        autoComplete="off"
+        autoCorrect="off"
+      />
       <label className="label">Your message</label>
-      <textarea className="input" placeholder="Every time you smile, I forget what I was going to say..." value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
+      <textarea
+        className="input"
+        placeholder="Every time you smile, I forget what I was going to say..."
+        value={form.message}
+        onChange={e=>setForm({...form,message:e.target.value})}
+      />
       <div className={`toggle-row ${form.reveal?"on":""}`} onClick={()=>setForm({...form,reveal:!form.reveal})}>
         <div className={`pill-switch ${form.reveal?"on":""}`}/>
         <div>
@@ -173,27 +196,43 @@ function FormScreen({ form, setForm, setScreen }) {
           <div className="toggle-sub">Animated heart card + glow effects + priority send</div>
         </div>
       </div>
-      <button className="btn btn-primary" style={{marginTop:10}} onClick={()=>{if(form.name&&form.contact&&form.message) setScreen(form.isPremium ? SCREENS.PAYMENT : SCREENS.SENT);}}>
+      <button
+        className="btn btn-primary"
+        style={{marginTop:10}}
+        onClick={()=>{if(form.name&&form.contact&&form.message) setScreen(form.isPremium ? SCREENS.PAYMENT : SCREENS.SENT);}}
+      >
         {form.isPremium ? "Continue to payment →" : "Send for FREE 💌"}
       </button>
+      {(!form.name || !form.contact || !form.message) && (
+        <p style={{textAlign:"center",fontSize:12,color:"#C9A0B4",marginTop:10}}>Fill all fields to continue</p>
+      )}
     </div>
   );
 }
 
 // ── Main App ────────────────────────────────────────────────
 export default function CrushDrop() {
-  const [screen, setScreen]       = useState(SCREENS.LANDING);
-  // FEATURE 5: isPremium added to form state
-  const [form, setForm]           = useState({ name: "", contact: "", message: "", reveal: true, isPremium: false });
-  const [txnId, setTxnId]         = useState("");
-  const [revealed, setRevealed]   = useState(false);
+  const [screen, setScreen]     = useState(SCREENS.LANDING);
+  const [form, setForm]         = useState({ name: "", contact: "", message: "", reveal: true, isPremium: false });
+  const [txnId, setTxnId]       = useState("");
+  const [revealed, setRevealed] = useState(false);
   const [shareVariant, setShareVariant] = useState("sender");
-  const [copied, setCopied]       = useState(false);
+  const [copied, setCopied]     = useState(false);
   const [shareStatus, setShareStatus] = useState("");
-  // FEATURE 1: blur toggle
   const [messageBlurred, setMessageBlurred] = useState(true);
 
-  const goShare = (variant) => { setShareVariant(variant); setScreen(SCREENS.SHARE); };
+  // Reset receiver state when entering receiver screen
+  const goReceiver = () => {
+    setRevealed(false);
+    setMessageBlurred(true);
+    setScreen(SCREENS.RECEIVER);
+  };
+
+  const goShare = (variant) => {
+    setShareVariant(variant);
+    setShareStatus("");
+    setScreen(SCREENS.SHARE);
+  };
 
   const handleNativeShare = async () => {
     setShareStatus("generating");
@@ -202,7 +241,7 @@ export default function CrushDrop() {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText("https://crushdrop.in");
+    navigator.clipboard.writeText(APP_URL);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -218,7 +257,7 @@ export default function CrushDrop() {
       100% { transform: translateY(110vh) rotate(200deg); opacity:0; }
     }
     @keyframes fadeUp {
-      from { opacity:0; transform:translateY(22px); }
+      from { opacity:0; transform:translateY(18px); }
       to   { opacity:1; transform:translateY(0); }
     }
     @keyframes softPulse {
@@ -241,87 +280,104 @@ export default function CrushDrop() {
       0%,100% { color:#C9657D; }
       50% { color:#E8728A; }
     }
-    @keyframes blurReveal {
-      from { filter:blur(8px); }
-      to   { filter:blur(0); }
-    }
     @keyframes shimmer {
       0% { background-position: -200% center; }
       100% { background-position: 200% center; }
     }
 
+    html, body {
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
     .app {
-      min-height:100vh;
+      min-height: 100dvh;
       background: linear-gradient(160deg,#FFF0F3 0%,#FDE8EE 50%,#F9E4F0 100%);
       font-family:'DM Sans',sans-serif;
       color:#3D2B35;
       display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      padding:24px 20px;
-      position:relative; overflow:hidden;
+      align-items:center; justify-content:flex-start;
+      padding: 20px 16px 40px;
+      position:relative; overflow-x:hidden;
     }
+
+    @media (min-height: 700px) {
+      .app { justify-content: center; }
+    }
+
     .petal {
       position:fixed; pointer-events:none; user-select:none;
       font-size:var(--size); left:var(--left); top:-40px; opacity:0;
       animation:petalFall var(--dur) ease-in infinite;
       animation-delay:var(--delay);
+      will-change: transform;
     }
+
     .card {
-      background:rgba(255,255,255,0.82);
+      background:rgba(255,255,255,0.85);
       backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);
       border:1px solid rgba(232,114,138,0.14);
-      border-radius:28px; padding:36px 28px;
+      border-radius:24px;
+      padding: 28px 20px 32px;
       width:100%; max-width:420px;
-      animation:fadeUp 0.45s cubic-bezier(0.22,1,0.36,1);
+      animation:fadeUp 0.4s cubic-bezier(0.22,1,0.36,1);
       position:relative; z-index:10;
-      box-shadow:0 8px 48px rgba(201,160,180,0.18),0 2px 8px rgba(232,114,138,0.08);
+      box-shadow:0 8px 40px rgba(201,160,180,0.18),0 2px 8px rgba(232,114,138,0.08);
     }
+
     .wordmark {
-      font-family:'Cormorant Garamond',serif; font-size:30px;
+      font-family:'Cormorant Garamond',serif; font-size:28px;
       font-style:italic; color:#C9657D;
       text-align:center; letter-spacing:0.5px; margin-bottom:3px;
     }
     .tagline {
-      text-align:center; color:#C9A0B4; font-size:12px;
-      letter-spacing:1.2px; text-transform:uppercase; margin-bottom:30px;
+      text-align:center; color:#C9A0B4; font-size:11px;
+      letter-spacing:1.2px; text-transform:uppercase; margin-bottom:24px;
     }
     .hero-icon {
-      width:80px; height:80px;
+      width:72px; height:72px;
       background:linear-gradient(135deg,#FADADD,#F7C5D0);
       border-radius:50%; display:flex; align-items:center; justify-content:center;
-      font-size:36px; margin:0 auto 20px;
+      font-size:32px; margin:0 auto 18px;
       animation:heartBeat 2.8s ease-in-out infinite;
       box-shadow:0 4px 20px rgba(232,114,138,0.2);
     }
     h2 {
-      font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:600;
+      font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:600;
       color:#3D2B35; text-align:center; line-height:1.3; margin-bottom:8px;
     }
     .sub {
-      color:#B08898; font-size:13.5px; text-align:center;
-      line-height:1.65; margin-bottom:24px;
+      color:#B08898; font-size:13px; text-align:center;
+      line-height:1.65; margin-bottom:20px;
     }
-    .feature-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:13px; }
+    .feature-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
     .feature-icon {
-      width:34px; height:34px;
+      width:36px; height:36px; min-width:36px;
       background:linear-gradient(135deg,#FADADD,#F7C5D0);
       border-radius:10px; display:flex; align-items:center;
-      justify-content:center; font-size:16px; flex-shrink:0;
+      justify-content:center; font-size:16px;
     }
-    .feature-text { font-size:13.5px; color:#7A5566; line-height:1.5; padding-top:2px; }
-    .feature-title { font-weight:600; color:#4A3040; font-size:13.5px; }
+    .feature-text { font-size:13px; color:#7A5566; line-height:1.5; padding-top:3px; }
+    .feature-title { font-weight:600; color:#4A3040; font-size:13px; }
     .divider {
       height:1px;
       background:linear-gradient(90deg,transparent,rgba(201,160,180,0.3),transparent);
-      margin:20px 0;
+      margin:18px 0;
     }
+
+    /* ── Buttons ── */
     .btn {
-      width:100%; padding:15px; border-radius:16px; border:none;
+      width:100%;
+      padding: 16px;
+      border-radius:16px; border:none;
       cursor:pointer; font-size:15px; font-weight:600;
       font-family:'DM Sans',sans-serif;
-      transition:transform 0.15s ease, opacity 0.15s ease;
+      transition:transform 0.12s ease, opacity 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
-    .btn:active { transform:scale(0.975); }
+    .btn:active { transform:scale(0.97); opacity:0.9; }
     .btn-primary {
       background:linear-gradient(135deg,#E8728A,#D45A75); color:white;
       animation:softPulse 3s ease-in-out infinite;
@@ -345,44 +401,52 @@ export default function CrushDrop() {
       box-shadow:0 4px 20px rgba(255,165,0,0.35);
       animation:shimmer 3s linear infinite;
     }
+
+    /* ── Inputs ── */
     .label {
-      font-size:11.5px; font-weight:600; color:#B08898;
+      font-size:11px; font-weight:600; color:#B08898;
       letter-spacing:1px; text-transform:uppercase;
-      display:block; margin-bottom:8px;
+      display:block; margin-bottom:7px;
     }
     .input {
       width:100%;
       background:rgba(253,232,238,0.4);
       border:1.5px solid rgba(201,160,180,0.25);
-      border-radius:14px; padding:13px 16px;
-      color:#3D2B35; font-size:14px;
+      border-radius:14px; padding:14px 16px;
+      color:#3D2B35; font-size:16px;
       font-family:'DM Sans',sans-serif;
       outline:none; transition:border-color 0.2s, background 0.2s;
-      margin-bottom:16px;
+      margin-bottom:14px;
+      -webkit-appearance: none;
+      appearance: none;
     }
-    .input::placeholder { color:#C9A0B4; }
+    .input::placeholder { color:#C9A0B4; font-size:14px; }
     .input:focus { border-color:rgba(232,114,138,0.5); background:rgba(255,255,255,0.9); }
-    textarea.input { resize:none; height:96px; line-height:1.65; }
+    textarea.input { resize:none; height:90px; line-height:1.65; font-size:14px; }
+
+    /* ── Toggles ── */
     .toggle-row {
       display:flex; align-items:center; gap:13px;
       background:rgba(253,232,238,0.5);
       border:1.5px solid rgba(201,160,180,0.2);
       border-radius:16px; padding:14px 16px;
-      cursor:pointer; margin-bottom:12px;
+      cursor:pointer; margin-bottom:10px;
       transition:border-color 0.2s, background 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     .toggle-row.on { border-color:rgba(232,114,138,0.35); background:rgba(232,114,138,0.06); }
     .toggle-row.premium-row { border-color:rgba(255,165,0,0.3); background:rgba(255,215,0,0.06); }
     .toggle-row.premium-row.on { border-color:rgba(255,165,0,0.5); background:rgba(255,215,0,0.1); }
     .pill-switch {
-      width:42px; height:24px; background:#DCCCD4;
+      width:44px; height:26px; background:#DCCCD4;
       border-radius:100px; position:relative; flex-shrink:0;
       transition:background 0.25s;
     }
     .pill-switch.on { background:#E8728A; }
     .pill-switch.premium-pill.on { background:linear-gradient(135deg,#FFD700,#FFA500); }
     .pill-switch::after {
-      content:''; position:absolute; width:18px; height:18px;
+      content:''; position:absolute; width:20px; height:20px;
       background:white; border-radius:50%; top:3px; left:3px;
       transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
       box-shadow:0 1px 4px rgba(0,0,0,0.15);
@@ -390,9 +454,11 @@ export default function CrushDrop() {
     .pill-switch.on::after { transform:translateX(18px); }
     .toggle-label { font-size:13.5px; color:#4A3040; font-weight:500; }
     .toggle-sub   { font-size:12px; color:#B08898; margin-top:2px; }
+
+    /* ── Receipt / UPI ── */
     .receipt {
       background:rgba(253,232,238,0.4); border-radius:16px;
-      padding:16px 18px; margin-bottom:18px;
+      padding:14px 16px; margin-bottom:16px;
     }
     .receipt-row {
       display:flex; justify-content:space-between; align-items:center;
@@ -405,31 +471,34 @@ export default function CrushDrop() {
     .receipt-total { color:#C9657D; font-size:17px; }
     .upi-box {
       background:white; border:1.5px dashed rgba(201,160,180,0.35);
-      border-radius:16px; padding:18px; text-align:center; margin:16px 0;
+      border-radius:16px; padding:16px; text-align:center; margin:14px 0;
     }
     .upi-val { font-size:17px; font-weight:700; color:#C9657D; letter-spacing:0.5px; margin:6px 0 4px; }
+
+    /* ── Nav ── */
     .back-btn {
       background:none; border:none; color:#C9A0B4; font-size:13px;
       cursor:pointer; font-family:'DM Sans',sans-serif;
-      padding:0; margin-bottom:20px;
-      display:flex; align-items:center; gap:4px; transition:color 0.15s;
+      padding: 8px 0; margin-bottom:16px;
+      display:flex; align-items:center; gap:4px;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
     }
-    .back-btn:hover { color:#C9657D; }
-    .step-bar { display:flex; gap:5px; justify-content:center; margin-bottom:26px; }
+    .step-bar { display:flex; gap:5px; justify-content:center; margin-bottom:22px; }
     .step-seg {
       height:3px; border-radius:100px;
       background:rgba(201,160,180,0.2); flex:1; max-width:60px; transition:background 0.3s;
     }
     .step-seg.done { background:#E8728A; }
 
-    /* ── FEATURE 1: Blurred message ── */
+    /* ── Message card ── */
     .msg-card {
       background:linear-gradient(135deg,#FFF5F7,#FDE8EE);
       border:1px solid rgba(232,114,138,0.18);
-      border-radius:20px; padding:22px 20px; margin:18px 0;
+      border-radius:20px; padding:20px 18px; margin:16px 0;
       position:relative;
     }
-    .anon-label { font-size:11.5px; color:#C9A0B4; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
+    .anon-label { font-size:11px; color:#C9A0B4; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
     .msg-text {
       font-family:'Cormorant Garamond',serif; font-size:18px;
       font-style:italic; color:#4A3040; line-height:1.75;
@@ -441,23 +510,25 @@ export default function CrushDrop() {
       position:absolute; inset:0; border-radius:20px;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       gap:8px; cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     .blur-cta {
       background:rgba(232,114,138,0.9); color:white;
-      padding:8px 20px; border-radius:100px;
-      font-size:13px; font-weight:600;
+      padding:10px 22px; border-radius:100px;
+      font-size:14px; font-weight:600;
       font-family:'DM Sans',sans-serif; border:none; cursor:pointer;
       box-shadow:0 4px 14px rgba(232,114,138,0.4);
+      min-height: 44px;
     }
-    .blur-sub { font-size:11px; color:rgba(255,255,255,0.85); }
+    .blur-sub { font-size:11px; color:rgba(60,30,40,0.6); }
 
-    /* ── FEATURE 2: Countdown timer ── */
+    /* ── Countdown ── */
     .countdown-box {
       background:rgba(232,114,138,0.07);
       border:1.5px solid rgba(232,114,138,0.2);
       border-radius:16px; padding:12px 16px;
       display:flex; align-items:center; justify-content:space-between;
-      margin-bottom:16px;
+      margin-bottom:14px;
     }
     .countdown-label { font-size:12px; color:#B08898; }
     .countdown-timer {
@@ -468,14 +539,16 @@ export default function CrushDrop() {
     }
     .countdown-fire { font-size:18px; }
 
-    /* ── FEATURE 3: More crushes tease ── */
+    /* ── More crushes ── */
     .more-crushes-box {
       background:linear-gradient(135deg,rgba(232,114,138,0.08),rgba(201,160,180,0.1));
       border:1.5px solid rgba(232,114,138,0.2);
-      border-radius:16px; padding:16px 18px; margin-top:14px;
-      cursor:pointer; transition:transform 0.15s;
+      border-radius:16px; padding:16px 16px; margin-top:12px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
-    .more-crushes-box:active { transform:scale(0.98); }
+    .more-crushes-box:active { opacity:0.85; }
     .more-crushes-title { font-size:14px; font-weight:600; color:#4A3040; margin-bottom:4px; }
     .more-crushes-sub { font-size:12.5px; color:#B08898; }
     .crush-avatars { display:flex; gap:4px; margin-bottom:8px; }
@@ -486,38 +559,39 @@ export default function CrushDrop() {
       font-size:14px; border:2px solid white;
     }
 
-    /* ── FEATURE 4: Referral loop box ── */
+    /* ── Referral ── */
     .referral-box {
       background:linear-gradient(135deg,#FFF0F3,#FDE8EE);
       border:1.5px dashed rgba(232,114,138,0.3);
-      border-radius:20px; padding:20px; margin:16px 0; text-align:center;
+      border-radius:20px; padding:18px; margin:14px 0; text-align:center;
     }
-    .referral-emoji { font-size:32px; margin-bottom:8px; }
+    .referral-emoji { font-size:30px; margin-bottom:8px; }
     .referral-title { font-size:15px; font-weight:600; color:#3D2B35; margin-bottom:4px; }
-    .referral-sub { font-size:13px; color:#B08898; margin-bottom:14px; line-height:1.5; }
+    .referral-sub { font-size:13px; color:#B08898; margin-bottom:12px; line-height:1.5; }
 
+    /* ── Reveal ── */
     .reveal-result {
       animation:revealSlide 0.5s cubic-bezier(0.22,1,0.36,1) forwards;
       background:linear-gradient(135deg,#FFF0F3,white);
       border:1.5px solid rgba(232,114,138,0.25);
-      border-radius:20px; padding:26px 20px; text-align:center;
+      border-radius:20px; padding:24px 18px; text-align:center;
     }
     .reveal-name {
-      font-family:'Cormorant Garamond',serif; font-size:32px;
+      font-family:'Cormorant Garamond',serif; font-size:30px;
       font-style:italic; color:#C9657D; margin:10px 0 4px;
     }
     .badge {
       display:inline-flex; align-items:center; gap:5px;
       background:rgba(232,114,138,0.1); border:1px solid rgba(232,114,138,0.2);
-      border-radius:100px; padding:4px 12px; font-size:12px;
-      color:#C9657D; font-weight:500; margin-bottom:20px;
+      border-radius:100px; padding:5px 14px; font-size:12px;
+      color:#C9657D; font-weight:500; margin-bottom:16px;
     }
     .success-circle {
-      width:76px; height:76px;
+      width:72px; height:72px;
       background:linear-gradient(135deg,#FADADD,#F7C5D0);
       border-radius:50%; display:flex; align-items:center;
-      justify-content:center; font-size:34px;
-      margin:0 auto 20px;
+      justify-content:center; font-size:32px;
+      margin:0 auto 18px;
       box-shadow:0 4px 20px rgba(232,114,138,0.22);
     }
     .demo-row {
@@ -527,48 +601,46 @@ export default function CrushDrop() {
     .demo-chip {
       background:rgba(201,160,180,0.12);
       border:1px solid rgba(201,160,180,0.2);
-      border-radius:100px; padding:5px 14px;
+      border-radius:100px; padding:7px 16px;
       font-size:12px; color:#C9A0B4; cursor:pointer;
-      font-family:'DM Sans',sans-serif; transition:background 0.15s;
+      font-family:'DM Sans',sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 36px;
     }
-    .demo-chip:hover { background:rgba(232,114,138,0.1); color:#C9657D; }
-    .free-badge {
-      display:inline-block;
-      background:linear-gradient(135deg,#4CAF50,#45a049);
-      color:white; font-size:10px; font-weight:700;
-      letter-spacing:1px; padding:2px 8px; border-radius:100px;
-      margin-left:6px; vertical-align:middle;
-    }
+    .demo-chip:active { background:rgba(232,114,138,0.1); color:#C9657D; }
 
     /* ── Share screen ── */
     .story-preview {
-      width:100%; aspect-ratio:9/16; max-height:280px;
+      width:100%; aspect-ratio:9/16; max-height:260px;
       background:linear-gradient(160deg,#FFF0F3,#FDE8EE,#F5D5E8);
       border-radius:20px; display:flex; flex-direction:column;
-      align-items:center; justify-content:center; gap:10px;
+      align-items:center; justify-content:center; gap:8px;
       border:1.5px solid rgba(232,114,138,0.18);
-      margin-bottom:22px; position:relative; overflow:hidden;
+      margin-bottom:18px; position:relative; overflow:hidden;
     }
     .story-preview-text {
       font-family:'Cormorant Garamond',serif; font-style:italic;
-      font-size:18px; color:#4A3040; text-align:center;
-      line-height:1.5; padding:0 20px;
+      font-size:17px; color:#4A3040; text-align:center;
+      line-height:1.5; padding:0 18px;
     }
     .story-url {
       background:rgba(232,114,138,0.12); border-radius:100px;
-      padding:5px 16px; font-size:12px; color:#C9657D; font-weight:600;
+      padding:5px 14px; font-size:11px; color:#C9657D; font-weight:600;
     }
     .share-grid {
       display:grid; grid-template-columns:1fr 1fr;
-      gap:10px; margin-bottom:14px;
+      gap:10px; margin-bottom:12px;
     }
     .share-btn {
-      display:flex; align-items:center; gap:10px;
-      padding:13px 14px; border-radius:14px; border:none;
+      display:flex; align-items:center; gap:8px;
+      padding:14px 12px; border-radius:14px; border:none;
       cursor:pointer; font-family:'DM Sans',sans-serif;
-      font-size:13.5px; font-weight:500; transition:transform 0.15s, opacity 0.15s;
+      font-size:14px; font-weight:500;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      min-height: 52px;
     }
-    .share-btn:active { transform:scale(0.96); }
+    .share-btn:active { opacity:0.85; transform:scale(0.97); }
     .share-btn-ig  { background:linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7); color:white; }
     .share-btn-sc  { background:#FFFC00; color:#000; }
     .share-btn-wa  { background:#25D366; color:white; }
@@ -584,15 +656,19 @@ export default function CrushDrop() {
       animation:spin 0.7s linear infinite; flex-shrink:0;
     }
     .native-share-btn {
-      width:100%; padding:16px; border-radius:16px; border:none;
+      width:100%; padding:17px; border-radius:16px; border:none;
       background:linear-gradient(135deg,#E8728A,#D45A75); color:white;
       font-size:15px; font-weight:600; font-family:'DM Sans',sans-serif;
       cursor:pointer; margin-bottom:12px;
       box-shadow:0 4px 20px rgba(232,114,138,0.3);
       display:flex; align-items:center; justify-content:center; gap:10px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      min-height: 56px;
     }
+    .native-share-btn:active { opacity:0.9; transform:scale(0.98); }
     .status-note {
-      text-align:center; font-size:12.5px; color:#C9A0B4;
+      text-align:center; font-size:12px; color:#C9A0B4;
       margin-top:6px; line-height:1.6;
     }
     .premium-badge {
@@ -605,21 +681,20 @@ export default function CrushDrop() {
     }
   `;
 
-  // ── LANDING ────────────────────────────────────────────────
+  // ── LANDING ─────────────────────────────────────────────
   const Landing = () => (
     <div className="card">
       <div className="wordmark">CrushDrop 💌</div>
       <div className="tagline">Anonymous confessions, delivered with love</div>
       <div className="hero-icon">💌</div>
       <h2>Say what your heart can't</h2>
-      {/* FEATURE 5: "FREE" badge on sender feature */}
       <p className="sub">Send an anonymous message to your crush — <strong>completely free</strong>.<br/>They'll never know it's you — unless you want them to.</p>
-      <div style={{marginBottom:26}}>
+      <div style={{marginBottom:22}}>
         {[
-          ["💌","Send it anonymously — FREE","Your name stays completely hidden. Zero cost to send."],
+          ["💌","Send it anonymously — FREE","Your name stays hidden. Zero cost to send."],
           ["🔐","Reveal when you're ready","They pay ₹49 to find out — you decide"],
           ["✨","Premium animated cards","Send a beautiful heart card for just ₹49"],
-          ["📸","Share on Instagram & Snapchat","Beautiful story cards, one tap to share"],
+          ["📸","Share on Instagram & Snapchat","Story cards, one tap to share"],
         ].map(([icon,title,desc]) => (
           <div className="feature-row" key={title}>
             <div className="feature-icon">{icon}</div>
@@ -630,23 +705,25 @@ export default function CrushDrop() {
           </div>
         ))}
       </div>
-      <button className="btn btn-primary" onClick={() => setScreen(SCREENS.FORM)}>Send a secret message — FREE 💗</button>
+      <button className="btn btn-primary" onClick={() => setScreen(SCREENS.FORM)}>
+        Send a secret message — FREE 💗
+      </button>
       <div className="demo-row">
         <span style={{color:"#C9A0B4",fontSize:12}}>See demo:</span>
-        <button className="demo-chip" onClick={() => setScreen(SCREENS.RECEIVER)}>👁 Receiver's view</button>
+        <button className="demo-chip" onClick={goReceiver}>👁 Receiver's view</button>
         <button className="demo-chip" onClick={() => goShare("sender")}>📸 Share screen</button>
       </div>
     </div>
   );
 
-  // ── PAYMENT (only for premium) ─────────────────────────────
+  // ── PAYMENT ─────────────────────────────────────────────
   const Payment = () => (
     <div className="card">
       <button className="back-btn" onClick={()=>setScreen(SCREENS.FORM)}>← Back</button>
       <div className="step-bar">{[true,true,false].map((d,i)=><div key={i} className={`step-seg ${d?"done":""}`}/>)}</div>
       <div className="premium-badge">✨ Premium Message</div>
       <h2 style={{textAlign:"left"}}>One small payment 💳</h2>
-      <p className="sub" style={{textAlign:"left",marginBottom:18}}>Your animated card goes out the moment we confirm.</p>
+      <p className="sub" style={{textAlign:"left",marginBottom:16}}>Your animated card goes out the moment we confirm.</p>
       <div className="receipt">
         <div className="receipt-row"><span className="receipt-label">Premium animated card</span><span className="receipt-val">₹49</span></div>
         {form.reveal&&<div className="receipt-row"><span className="receipt-label">Reveal option for them</span><span className="receipt-val" style={{color:"#C9A0B4"}}>Free</span></div>}
@@ -658,46 +735,53 @@ export default function CrushDrop() {
         <div style={{fontSize:12,color:"#C9A0B4"}}>or scan the QR code</div>
       </div>
       <label className="label">Paste your UPI transaction ID</label>
-      <input className="input" placeholder="e.g. 427891234567" value={txnId} onChange={e=>setTxnId(e.target.value)}/>
-      <button className="btn btn-premium" onClick={()=>{if(txnId.length>4)setScreen(SCREENS.SENT);}}>Send my premium message ✨</button>
+      <input
+        className="input"
+        placeholder="e.g. 427891234567"
+        value={txnId}
+        onChange={e=>setTxnId(e.target.value)}
+        inputMode="numeric"
+      />
+      <button className="btn btn-premium" onClick={()=>{if(txnId.length>4)setScreen(SCREENS.SENT);}}>
+        Send my premium message ✨
+      </button>
     </div>
   );
 
-  // ── SENT ──────────────────────────────────────────────────
+  // ── SENT ────────────────────────────────────────────────
   const Sent = () => (
     <div className="card" style={{textAlign:"center"}}>
       <div className="step-bar">{[true,true,true].map((d,i)=><div key={i} className={`step-seg ${d?"done":""}`}/>)}</div>
       <div className="success-circle">🎉</div>
       <h2>Message sent!</h2>
-      <p className="sub" style={{marginBottom:20}}>
+      <p className="sub" style={{marginBottom:18}}>
         <strong>{form.name||"They"}</strong> will receive it any moment.<br/>Let the butterflies begin... 🦋
       </p>
       <button className="btn btn-primary" style={{marginBottom:10}} onClick={()=>goShare("sender")}>
         📸 Share on Instagram & Snapchat
       </button>
-
-      {/* FEATURE 4: Referral loop */}
       <div className="referral-box">
         <div className="referral-emoji">👀</div>
         <div className="referral-title">Does someone secretly like you too?</div>
-        <div className="referral-sub">Share your personal CrushDrop link and find out who has been thinking about you 💗</div>
+        <div className="referral-sub">Share your CrushDrop link and find out who's been thinking about you 💗</div>
         <button className="btn btn-ghost" style={{marginTop:0}} onClick={()=>{
-          navigator.clipboard.writeText("https://crushdrop.in/for/me");
-          alert("Link copied! Share it on your Instagram bio or WhatsApp status 💌");
+          navigator.clipboard.writeText(`${APP_URL}/for/me`);
+          alert("Link copied! Share on your Instagram bio or WhatsApp status 💌");
         }}>🔗 Copy my CrushDrop link</button>
       </div>
-
-      <button className="btn btn-ghost" onClick={()=>{setForm({name:"",contact:"",message:"",reveal:true,isPremium:false});setTxnId("");setScreen(SCREENS.LANDING);}}>
+      <button className="btn btn-ghost" onClick={()=>{
+        setForm({name:"",contact:"",message:"",reveal:true,isPremium:false});
+        setTxnId("");
+        setScreen(SCREENS.LANDING);
+      }}>
         Send another 💗
       </button>
     </div>
   );
 
-  // ── RECEIVER ──────────────────────────────────────────────
+  // ── RECEIVER ────────────────────────────────────────────
   const Receiver = () => {
-    // FEATURE 2: Countdown timer (23 hrs 47 mins from now = 85620 seconds)
     const timeLeft = useCountdown(85620);
-
     return (
       <div className="card">
         <div className="wordmark">CrushDrop 💌</div>
@@ -707,7 +791,6 @@ export default function CrushDrop() {
         <h2 style={{marginBottom:4}}>Hey Priya 🌸</h2>
         <p className="sub">Someone has been thinking about you...</p>
 
-        {/* FEATURE 2: Countdown timer */}
         <div className="countdown-box">
           <div>
             <div className="countdown-label">⚠️ Reveal expires in</div>
@@ -718,7 +801,6 @@ export default function CrushDrop() {
 
         <div className="msg-card">
           <div className="anon-label">Anonymous message</div>
-          {/* FEATURE 1: Blurred message with overlay */}
           <div style={{position:"relative"}}>
             <div
               className={`msg-text ${messageBlurred?"blurred":""}`}
@@ -733,16 +815,14 @@ export default function CrushDrop() {
               </div>
             )}
           </div>
-          <div style={{fontSize:12,color:"#C9A0B4",marginTop:14,textAlign:"right"}}>Sent with love · just now</div>
+          <div style={{fontSize:11,color:"#C9A0B4",marginTop:12,textAlign:"right"}}>Sent with love · just now</div>
         </div>
 
         {!revealed ? (
           <>
-            <p style={{textAlign:"center",fontSize:13.5,color:"#9B7F8A",marginBottom:16}}>Want to know who sent this? 👀</p>
+            <p style={{textAlign:"center",fontSize:13,color:"#9B7F8A",marginBottom:14}}>Want to know who sent this? 👀</p>
             <button className="btn btn-mauve" onClick={()=>setRevealed(true)}>🔓 Reveal their name — ₹49</button>
             <p style={{textAlign:"center",fontSize:12,color:"#C9A0B4",marginTop:10}}>Completely private · only you can see this</p>
-
-            {/* FEATURE 3: More crushes tease */}
             <div className="more-crushes-box" onClick={()=>alert("Each reveal is ₹49 — Coming soon!")}>
               <div className="crush-avatars">
                 <div className="crush-avatar">🙈</div>
@@ -754,13 +834,11 @@ export default function CrushDrop() {
           </>
         ) : (
           <div className="reveal-result">
-            <div style={{fontSize:38,marginBottom:8}}>🎉</div>
+            <div style={{fontSize:36,marginBottom:8}}>🎉</div>
             <div style={{fontSize:13,color:"#C9A0B4",marginBottom:4}}>Your secret admirer is...</div>
             <div className="reveal-name">Rahul 💗</div>
-            <div style={{fontSize:13,color:"#B08898",marginBottom:18}}>rahul.sharma@gmail.com</div>
-
-            {/* FEATURE 3: More crushes tease after reveal */}
-            <div className="more-crushes-box" style={{marginBottom:16,textAlign:"left"}} onClick={()=>alert("Each reveal is ₹49 — Coming soon!")}>
+            <div style={{fontSize:13,color:"#B08898",marginBottom:16}}>rahul.sharma@gmail.com</div>
+            <div className="more-crushes-box" style={{marginBottom:14,textAlign:"left"}} onClick={()=>alert("Each reveal is ₹49 — Coming soon!")}>
               <div className="crush-avatars">
                 <div className="crush-avatar">🙈</div>
                 <div className="crush-avatar">🙈</div>
@@ -768,11 +846,10 @@ export default function CrushDrop() {
               <div className="more-crushes-title">2 more people are waiting... 👀</div>
               <div className="more-crushes-sub">₹49 each · Reveal who else likes you →</div>
             </div>
-
             <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10}} onClick={()=>goShare("receiver")}>
               📸 Share this moment!
             </button>
-            <button className="btn btn-ghost" onClick={()=>{setRevealed(false);setMessageBlurred(true);setScreen(SCREENS.LANDING);}}>
+            <button className="btn btn-ghost" onClick={()=>setScreen(SCREENS.LANDING)}>
               Send your own crush message 💌
             </button>
           </div>
@@ -781,31 +858,30 @@ export default function CrushDrop() {
     );
   };
 
-  // ── SHARE ─────────────────────────────────────────────────
+  // ── SHARE ────────────────────────────────────────────────
   const Share = () => {
     const senderText = shareVariant === "sender"
-      ? "I just sent my crush an anonymous message 😏 Find out who has a crush on YOU 👇"
-      : "Someone secretly has a crush on me 🥺 Find out who likes YOU 👇";
-    const shareUrl = "https://crushdrop.in";
-    const fullText = `${senderText}\n\n${shareUrl}`;
+      ? `I just sent my crush an anonymous message 😏 Find out who has a crush on YOU 👇`
+      : `Someone secretly has a crush on me 🥺 Find out who likes YOU 👇`;
+    const fullText = `${senderText}\n\n${APP_URL}`;
 
     return (
       <div className="card">
         <button className="back-btn" onClick={()=>setScreen(shareVariant==="sender"?SCREENS.SENT:SCREENS.RECEIVER)}>← Back</button>
         <h2 style={{marginBottom:6}}>Share the moment 📸</h2>
-        <p className="sub" style={{marginBottom:18}}>
+        <p className="sub" style={{marginBottom:16}}>
           {shareVariant==="sender" ? "Tell the world you shot your shot 😏" : "Show everyone someone has a crush on you 🥺"}
         </p>
         <div className="story-preview">
-          <div style={{fontSize:52}}>💌</div>
+          <div style={{fontSize:48}}>💌</div>
           <div className="story-preview-text">
             {shareVariant==="sender"
               ? "I just sent my crush\nan anonymous message 😏"
               : "Someone secretly\nhas a crush on me 🥺"}
           </div>
-          <div style={{fontSize:12,color:"#B08898"}}>Find out who likes YOU 👇</div>
-          <div className="story-url">crushdrop.in</div>
-          <div style={{position:"absolute",bottom:10,right:14,fontSize:11,color:"rgba(201,160,180,0.6)"}}>Story preview</div>
+          <div style={{fontSize:11,color:"#B08898"}}>Find out who likes YOU 👇</div>
+          <div className="story-url">crushdrop.vercel.app</div>
+          <div style={{position:"absolute",bottom:8,right:12,fontSize:10,color:"rgba(201,160,180,0.5)"}}>Preview</div>
         </div>
         <button className="native-share-btn" onClick={handleNativeShare}>
           {shareStatus==="generating"
@@ -813,12 +889,12 @@ export default function CrushDrop() {
             : shareStatus==="shared"
             ? <>✅ Shared!</>
             : shareStatus==="downloaded"
-            ? <>✅ Downloaded! Now open Instagram/Snapchat</>
+            ? <>✅ Downloaded! Open Instagram/Snapchat</>
             : <>📤 Share to Instagram / Snapchat / WhatsApp</>
           }
         </button>
         {shareStatus==="downloaded" && (
-          <div className="status-note">Image saved! Open Instagram Stories or Snapchat and add it from your gallery 📱</div>
+          <div className="status-note">Image saved! Open Instagram Stories or Snapchat and add from gallery 📱</div>
         )}
         <div className="divider"/>
         <div className="share-grid">
@@ -836,17 +912,17 @@ export default function CrushDrop() {
           </button>
           <button className="share-btn share-btn-copy" onClick={handleCopy}>
             <span className="share-icon">{copied?"✅":"🔗"}</span>
-            {copied ? "Link copied!" : "Copy crushdrop.in link"}
+            {copied ? "Link copied!" : `Copy link`}
           </button>
         </div>
         <div className="status-note" style={{marginTop:4}}>
-          💡 Tip: On mobile, tap "Share to Instagram / Snapchat" above — it opens directly in their story editor!
+          💡 Tap "Share" above — it opens directly in Instagram/Snapchat story editor on mobile!
         </div>
       </div>
     );
   };
 
-  // ── RENDER ────────────────────────────────────────────────
+  // ── RENDER ───────────────────────────────────────────────
   const render = () => {
     switch(screen) {
       case SCREENS.LANDING:  return <Landing/>;
