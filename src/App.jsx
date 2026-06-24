@@ -202,7 +202,7 @@ function FormScreen({ form, setForm, setScreen, onSend, sending, sendError }) {
       <p className="sub" style={{textAlign:"left",marginBottom:20}}>Free to send. Your name stays hidden unless they pay to reveal.</p>
 
       <label className="label">Your name <span style={{color:"#C9A0B4",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional — for reveal only)</span></label>
-      <input className="input" placeholder="e.g. Rahul — only shown if they pay ₹49" value={form.senderName} onChange={e=>setForm({...form,senderName:e.target.value})} autoComplete="off" autoCorrect="off"/>
+      <input className="input" placeholder="e.g. Rahul — only shown if they pay ₹11" value={form.senderName} onChange={e=>setForm({...form,senderName:e.target.value})} autoComplete="off" autoCorrect="off"/>
 
       <label className="label">Their name</label>
       <input className="input" placeholder="e.g. Priya" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} autoComplete="off" autoCorrect="off" spellCheck="false"/>
@@ -213,18 +213,18 @@ function FormScreen({ form, setForm, setScreen, onSend, sending, sendError }) {
       <label className="label">Your message</label>
       <textarea className="input" placeholder="Every time you smile, I forget what I was going to say..." value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
 
-      <div className={`toggle-row ${form.reveal?"on":""}`} onClick={()=>setForm({...form,reveal:!form.reveal})}>
-        <div className={`pill-switch ${form.reveal?"on":""}`}/>
+      <div className="toggle-row on" style={{cursor:"default"}}>
+        <div className="pill-switch on" style={{opacity:0.7}}/>
         <div>
-          <div className="toggle-label">Let them reveal your name</div>
-          <div className="toggle-sub">They pay ₹49 to find out who sent this</div>
+          <div className="toggle-label">Let them reveal your name 🔒</div>
+          <div className="toggle-sub">They pay ₹11 to find out who sent this — always on</div>
         </div>
       </div>
 
       <div className={`toggle-row premium-row ${form.isPremium?"on":""}`} onClick={()=>setForm({...form,isPremium:!form.isPremium})}>
         <div className={`pill-switch premium-pill ${form.isPremium?"on":""}`}/>
         <div>
-          <div className="toggle-label">✨ Premium delivery — ₹49</div>
+          <div className="toggle-label">✨ Premium delivery — ₹21</div>
           <div className="toggle-sub">Animated heart card + priority send</div>
         </div>
       </div>
@@ -294,7 +294,7 @@ export default function CrushDrop() {
         message: form.message,
         sender_name: form.senderName || null,
         is_premium: false,
-        reveal_enabled: form.reveal,
+        reveal_enabled: true,
         delivery_status: "pending",
       });
       setSentMsgId(saved.id);
@@ -311,7 +311,7 @@ export default function CrushDrop() {
     setPaymentLoading(true); setPaymentError("");
     try {
       const orderId = generateOrderId("PREMIUM");
-      const order = await createCashfreeOrder(49, orderId, form.contact.includes("@") ? form.contact : "user@crushdrop.in");
+      const order = await createCashfreeOrder(21, orderId, form.contact.includes("@") ? form.contact : "user@crushdrop.in");
       if (!order.payment_session_id) throw new Error("No session");
 
       const cashfree = await loadCashfreeSDK();
@@ -331,7 +331,7 @@ export default function CrushDrop() {
             message: form.message,
             sender_name: form.senderName || null,
             is_premium: true,
-            reveal_enabled: form.reveal,
+            reveal_enabled: true,
             txn_id: orderId,
             delivery_status: "pending",
           });
@@ -354,7 +354,7 @@ export default function CrushDrop() {
     setPaymentLoading(true); setPaymentError("");
     try {
       const orderId = generateOrderId("REVEAL");
-      const order = await createCashfreeOrder(49, orderId, "user@crushdrop.in");
+      const order = await createCashfreeOrder(11, orderId, "user@crushdrop.in");
       if (!order.payment_session_id) throw new Error("No session");
 
       const cashfree = await loadCashfreeSDK();
@@ -518,8 +518,8 @@ export default function CrushDrop() {
       <div style={{marginBottom:22}}>
         {[
           ["💌","Send it anonymously — FREE","Your name stays hidden. Zero cost to send."],
-          ["🔐","Reveal when you're ready","They pay ₹49 to find out — you decide"],
-          ["✨","Premium animated cards","Send a beautiful heart card for just ₹49"],
+          ["🔐","Reveal when you're ready","They pay ₹11 to find out — you decide"],
+          ["✨","Premium animated cards","Send a beautiful heart card for just ₹21"],
           ["📸","Share on Instagram & Snapchat","Story cards, one tap to share"],
         ].map(([icon,title,desc]) => (
           <div className="feature-row" key={title}>
@@ -551,14 +551,14 @@ export default function CrushDrop() {
       <h2 style={{textAlign:"left"}}>One small payment 💳</h2>
       <p className="sub" style={{textAlign:"left",marginBottom:16}}>Your animated card goes out the moment payment confirms.</p>
       <div className="receipt">
-        <div className="receipt-row"><span className="receipt-label">Premium animated card</span><span className="receipt-val">₹49</span></div>
-        {form.reveal && <div className="receipt-row"><span className="receipt-label">Reveal option</span><span className="receipt-val" style={{color:"#C9A0B4"}}>Free</span></div>}
-        <div className="receipt-row"><span className="receipt-label">Total</span><span className="receipt-val receipt-total">₹49</span></div>
+        <div className="receipt-row"><span className="receipt-label">Premium animated card</span><span className="receipt-val">₹21</span></div>
+        <div className="receipt-row"><span className="receipt-label">Reveal option</span><span className="receipt-val" style={{color:"#C9A0B4"}}>Free</span></div>
+        <div className="receipt-row"><span className="receipt-label">Total</span><span className="receipt-val receipt-total">₹21</span></div>
       </div>
       {paymentError && <p className="error-text">{paymentError}</p>}
       <div className="pay-btn-wrap">
         <button className="btn btn-premium" onClick={handlePremiumPayment} disabled={paymentLoading}>
-          {paymentLoading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/> Processing...</span> : "Pay ₹49 & Send ✨"}
+          {paymentLoading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/> Processing...</span> : "Pay ₹21 & Send ✨"}
         </button>
       </div>
       <p style={{textAlign:"center",fontSize:11,color:"#C9A0B4",marginTop:10}}>UPI · Cards · Net Banking · Wallets</p>
@@ -644,7 +644,7 @@ export default function CrushDrop() {
                 <button className="btn btn-mauve" onClick={handleRevealPayment} disabled={paymentLoading}>
                   {paymentLoading
                     ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/> Processing...</span>
-                    : "🔓 Reveal their name — ₹49"}
+                    : "🔓 Reveal their name — ₹11"}
                 </button>
                 <p style={{textAlign:"center",fontSize:12,color:"#C9A0B4",marginTop:10}}>UPI · Cards · Net Banking · Wallets</p>
               </>
