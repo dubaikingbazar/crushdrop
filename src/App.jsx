@@ -117,7 +117,7 @@ const petals = Array.from({ length: 10 }, (_, i) => ({
 }));
 
 // ── Canvas ──────────────────────────────────────────────────
-function generateStoryCanvas(variant = "sender") {
+function generateStoryCanvas(variant = "sender", senderName = null) {
   const canvas = document.createElement("canvas");
   canvas.width = 1080; canvas.height = 1920;
   const ctx = canvas.getContext("2d");
@@ -142,6 +142,9 @@ function generateStoryCanvas(variant = "sender") {
   if (variant === "sender") {
     wrapText(ctx, "I just sent my crush", cx, cardY+320, 740, 86);
     wrapText(ctx, "an anonymous message 😏", cx, cardY+406, 740, 86);
+  } else if (variant === "receiver" && senderName) {
+    wrapText(ctx, `${senderName} secretly`, cx, cardY+320, 740, 86);
+    wrapText(ctx, "has a crush on me 🥺", cx, cardY+406, 740, 86);
   } else {
     wrapText(ctx, "Someone secretly", cx, cardY+320, 740, 86);
     wrapText(ctx, "has a crush on me 🥺", cx, cardY+406, 740, 86);
@@ -175,8 +178,8 @@ function wrapText(ctx, text, x, y, maxW, lineH) {
   ctx.fillText(line.trim(),x,cy);
 }
 
-async function shareImage(variant) {
-  const canvas = generateStoryCanvas(variant);
+async function shareImage(variant, senderName = null) {
+  const canvas = generateStoryCanvas(variant, senderName);
   const blob = await new Promise(res => canvas.toBlob(res,"image/png"));
   const file = new File([blob],"crushdrop-story.png",{type:"image/png"});
   if (navigator.canShare && navigator.canShare({files:[file]})) {
@@ -186,24 +189,6 @@ async function shareImage(variant) {
   const url = canvas.toDataURL("image/png");
   const a = document.createElement("a"); a.href=url; a.download="crushdrop-story.png"; a.click();
   return "downloaded";
-}
-
-function useCountdown(createdAt) {
-  const getLeft = () => {
-    if (!createdAt) return 0;
-    const expiry = new Date(createdAt).getTime() + 24*60*60*1000;
-    const left = Math.floor((expiry - Date.now()) / 1000);
-    return left > 0 ? left : 0;
-  };
-  const [seconds, setSeconds] = useState(getLeft);
-  useEffect(() => {
-    const t = setInterval(() => setSeconds(getLeft()), 1000);
-    return () => clearInterval(t);
-  }, [createdAt]);
-  if (seconds <= 0) return null;
-  const h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
-  const pad = n => String(n).padStart(2,"0");
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 // ── Form ────────────────────────────────────────────────────
@@ -262,6 +247,7 @@ export default function CrushDrop() {
   const [form, setForm]               = useState(INITIAL_FORM);
   const [revealed, setRevealed]       = useState(false);
   const [shareVariant, setShareVariant] = useState("sender");
+  const [shareSenderName, setShareSenderName] = useState(null);
   const [copied, setCopied]           = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [messageBlurred, setMessageBlurred] = useState(true);
@@ -296,7 +282,7 @@ export default function CrushDrop() {
   };
 
   const goLanding = () => { resetAll(); setScreen(SCREENS.LANDING); };
-  const goShare = (variant) => { setShareVariant(variant); setShareStatus(""); setScreen(SCREENS.SHARE); };
+  const goShare = (variant, senderName = null) => { setShareVariant(variant); setShareSenderName(senderName); setShareStatus(""); setScreen(SCREENS.SHARE); };
   const goReceiver = () => { setRevealed(false); setMessageBlurred(true); setReceiverMsg(null); setCurrentMsgId(null); setScreen(SCREENS.RECEIVER); };
 
   const handleSend = async () => {
@@ -399,7 +385,7 @@ export default function CrushDrop() {
 
   const handleNativeShare = async () => {
     setShareStatus("generating");
-    const result = await shareImage(shareVariant);
+    const result = await shareImage(shareVariant, shareSenderName);
     setShareStatus(result);
   };
 
@@ -419,7 +405,6 @@ export default function CrushDrop() {
     @keyframes heartBeat{0%,100%{transform:scale(1);}30%{transform:scale(1.18);}60%{transform:scale(0.95);}}
     @keyframes revealSlide{from{opacity:0;transform:translateY(16px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
     @keyframes spin{to{transform:rotate(360deg);}}
-    @keyframes timerPulse{0%,100%{color:#C9657D;}50%{color:#E8728A;}}
     @keyframes shimmer{0%{background-position:-200% center;}100%{background-position:200% center;}}
     html,body{-webkit-text-size-adjust:100%;touch-action:manipulation;}
     .app{min-height:100dvh;background:linear-gradient(160deg,#FFF0F3 0%,#FDE8EE 50%,#F9E4F0 100%);font-family:'DM Sans',sans-serif;color:#3D2B35;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 16px 40px;position:relative;overflow-x:hidden;}
@@ -476,15 +461,10 @@ export default function CrushDrop() {
     .blur-overlay{position:absolute;inset:0;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
     .blur-cta{background:rgba(232,114,138,0.9);color:white;padding:10px 22px;border-radius:100px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(232,114,138,0.4);min-height:44px;}
     .blur-sub{font-size:11px;color:rgba(60,30,40,0.6);}
-    .countdown-box{background:rgba(232,114,138,0.07);border:1.5px solid rgba(232,114,138,0.2);border-radius:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-    .countdown-label{font-size:12px;color:#B08898;}
-    .countdown-timer{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#C9657D;animation:timerPulse 2s ease-in-out infinite;letter-spacing:1px;}
     .more-crushes-box{background:linear-gradient(135deg,rgba(232,114,138,0.08),rgba(201,160,180,0.1));border:1.5px solid rgba(232,114,138,0.2);border-radius:16px;padding:16px;margin-top:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
     .more-crushes-box:active{opacity:0.85;}
     .more-crushes-title{font-size:14px;font-weight:600;color:#4A3040;margin-bottom:4px;}
     .more-crushes-sub{font-size:12.5px;color:#B08898;}
-    .crush-avatars{display:flex;gap:4px;margin-bottom:8px;}
-    .crush-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FADADD,#F7C5D0);display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;}
     .referral-box{background:linear-gradient(135deg,#FFF0F3,#FDE8EE);border:1.5px dashed rgba(232,114,138,0.3);border-radius:20px;padding:18px;margin:14px 0;text-align:center;}
     .referral-emoji{font-size:30px;margin-bottom:8px;}
     .referral-title{font-size:15px;font-weight:600;color:#3D2B35;margin-bottom:4px;}
@@ -517,6 +497,14 @@ export default function CrushDrop() {
     .loading-box{text-align:center;padding:40px 20px;color:#C9A0B4;font-size:14px;}
     .pay-btn-wrap{margin-top:6px;}
     .error-text{color:#E8728A;font-size:13px;margin-bottom:10px;text-align:center;}
+    .trust-strip{display:flex;justify-content:space-between;gap:8px;margin:18px 0 4px;padding-top:16px;border-top:1px solid rgba(201,160,180,0.18);}
+    .trust-item{flex:1;text-align:center;font-size:11px;color:#9B7F8A;line-height:1.4;}
+    .trust-item-icon{font-size:16px;display:block;margin-bottom:3px;}
+    .app-footer{width:100%;max-width:420px;text-align:center;margin-top:18px;padding:0 12px;}
+    .app-footer-links{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+    .app-footer-links a{font-size:11.5px;color:#B08898;text-decoration:none;}
+    .app-footer-note{font-size:11px;color:#C9B5BF;line-height:1.6;}
+    .demo-tag{display:inline-block;background:rgba(201,160,180,0.15);color:#9B7F8A;font-size:10.5px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;border-radius:6px;padding:3px 8px;margin-bottom:10px;}
   `;
 
   // ── LANDING ─────────────────────────────────────────────
@@ -541,6 +529,11 @@ export default function CrushDrop() {
         ))}
       </div>
       <button className="btn btn-primary" onClick={()=>setScreen(SCREENS.FORM)}>Send a secret message — FREE 💗</button>
+      <div className="trust-strip">
+        <div className="trust-item"><span className="trust-item-icon">🔒</span>Your identity stays private until you choose to reveal it</div>
+        <div className="trust-item"><span className="trust-item-icon">💳</span>Payments via Cashfree, a licensed RBI payment gateway</div>
+        <div className="trust-item"><span className="trust-item-icon">🤐</span>We never share your data with anyone except the receiver</div>
+      </div>
       <div className="demo-row">
         <span style={{color:"#C9A0B4",fontSize:12}}>See demo:</span>
         <button className="demo-chip" onClick={goReceiver}>👁 Receiver's view</button>
@@ -603,7 +596,6 @@ export default function CrushDrop() {
 
   // ── RECEIVER ────────────────────────────────────────────
   const Receiver = () => {
-    const timeLeft = useCountdown(msg?.created_at);
     if (receiverLoading) return (
       <div className="card"><div className="loading-box"><div style={{fontSize:32,marginBottom:12}}>💌</div><div>Loading your message...</div></div></div>
     );
@@ -617,16 +609,10 @@ export default function CrushDrop() {
     return (
       <div className="card">
         <div className="wordmark">CrushDrop 💌</div>
+        {!msg && <div style={{textAlign:"center"}}><span className="demo-tag">Demo preview</span></div>}
         <div style={{textAlign:"center",marginBottom:6}}><div className="badge">💌 Someone sent you a secret message</div></div>
         <h2 style={{marginBottom:4}}>Hey {displayName} 🌸</h2>
         <p className="sub">Someone has been thinking about you...</p>
-        {msg && timeLeft && (
-          <div className="countdown-box">
-            <div><div className="countdown-label">⚠️ Reveal expires in</div></div>
-            <div className="countdown-timer">{timeLeft}</div>
-            <div style={{fontSize:18}}>🔥</div>
-          </div>
-        )}
         <div className="msg-card">
           <div className="anon-label">Anonymous message</div>
           <div style={{position:"relative"}}>
@@ -646,7 +632,7 @@ export default function CrushDrop() {
             <div style={{fontSize:13,color:"#C9A0B4",marginBottom:4}}>Your secret admirer is...</div>
             <div className="reveal-name">{senderName || "Anonymous 🙈"}</div>
             {!senderName && <div style={{fontSize:13,color:"#B08898",marginBottom:12}}>They chose to stay anonymous 🤫</div>}
-            <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10,marginTop:16}} onClick={()=>goShare("receiver")}>📸 Share this moment!</button>
+            <button className="btn btn-primary" style={{animation:"none",boxShadow:"none",marginBottom:10,marginTop:16}} onClick={()=>goShare("receiver", senderName)}>📸 Share this moment!</button>
             <button className="btn btn-ghost" onClick={goLanding}>Send your own crush message 💌</button>
           </div>
         ) : (
@@ -663,7 +649,10 @@ export default function CrushDrop() {
                 <p style={{textAlign:"center",fontSize:12,color:"#C9A0B4",marginTop:10}}>UPI · Cards · Net Banking · Wallets</p>
               </>
             )}
-
+            <div className="more-crushes-box" onClick={()=>goShare("receiver", senderName)}>
+              <div className="more-crushes-title">👀 Want to know if someone else likes you?</div>
+              <div className="more-crushes-sub">Share your own CrushDrop link and find out →</div>
+            </div>
           </>
         )}
       </div>
@@ -735,6 +724,14 @@ export default function CrushDrop() {
         <div key={i} className="petal" style={{"--left":p.left,"--size":p.size,"--dur":p.duration,"--delay":p.delay,"--op":p.opacity}}>🌸</div>
       ))}
       {render()}
+      <div className="app-footer">
+        <div className="app-footer-links">
+          <a href={`mailto:support@crushdrop.in`}>Contact support</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); alert("CrushDrop Privacy Policy\n\nWe collect only what's needed to deliver your message: the receiver's name/contact and your message text. We never sell or share this data. Payments are processed securely by Cashfree — we never see your card or UPI details.");}}>Privacy policy</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); alert("Refunds\n\nIf a payment is deducted but a reveal or premium card doesn't go through, email support@crushdrop.in with your transaction ID and we'll refund within 5-7 business days.");}}>Refunds</a>
+        </div>
+        <div className="app-footer-note">Made in India 🇮🇳 · CrushDrop is an independent project, not affiliated with Instagram or Snapchat</div>
+      </div>
     </div>
   );
 }
