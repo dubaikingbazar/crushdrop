@@ -201,36 +201,40 @@ async function shareProfileImage(username) {
 
 // ── SignupForm (standalone — keyboard fix) ──────────────────
 function SignupForm({ onSuccess, goTo }) {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [available, setAvailable] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [fields, setFields] = useState({ username: "", email: "", password: "" });
+  const [status, setStatus] = useState({ checking: false, available: null, error: "", loading: false });
+  const timerRef = useRef(null);
+  const availableRef = useRef(null);
 
-  useEffect(() => {
-    if (username.length < 3) { setAvailable(null); return; }
-    setChecking(true);
-    const t = setTimeout(() => {
-      checkUsername(username).then(a => { setAvailable(a); setChecking(false); });
-    }, 600);
-    return () => clearTimeout(t);
-  }, [username]);
+  const updateField = (key, val) => setFields(f => ({ ...f, [key]: val }));
+
+  const onUsernameChange = (e) => {
+    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    updateField("username", val);
+    clearTimeout(timerRef.current);
+    if (val.length < 3) { availableRef.current = null; return; }
+    timerRef.current = setTimeout(async () => {
+      const a = await checkUsername(val);
+      availableRef.current = a;
+      setStatus(s => ({ ...s, available: a }));
+    }, 800);
+  };
 
   const handleSubmit = async () => {
-    if (!username || !email || !password) { setError("Sab fields bharo"); return; }
-    if (!available) { setError("Username already taken"); return; }
-    setLoading(true); setError("");
+    const { username, email, password } = fields;
+    if (!username || !email || !password) { setStatus(s => ({...s, error: "Sab fields bharo"})); return; }
+    if (availableRef.current === false) { setStatus(s => ({...s, error: "Username already taken"})); return; }
+    setStatus(s => ({...s, loading: true, error: ""}));
     try {
       const data = await signUp(email, password, username);
       onSuccess(data.access_token, username.toLowerCase());
     } catch(e) {
-      setError(e.message || "Signup failed");
-    } finally {
-      setLoading(false);
+      setStatus(s => ({...s, error: e.message || "Signup failed", loading: false}));
     }
   };
+
+  const { username, email, password } = fields;
+  const { available, error, loading } = status;
 
   return (
     <div className="card">
@@ -241,19 +245,20 @@ function SignupForm({ onSuccess, goTo }) {
       <label className="label">Username choose karo</label>
       <div className="input-wrap">
         <input className="input" placeholder="e.g. priya, rahul123" value={username}
-          onChange={e=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
+          onChange={onUsernameChange}
           autoComplete="off" autoCorrect="off" spellCheck="false" style={{paddingRight:80}}/>
-        {checking && <span className="input-badge" style={{color:"#C9A0B4"}}>...</span>}
-        {!checking && available === true && <span className="input-badge badge-green">✓ Free</span>}
-        {!checking && available === false && <span className="input-badge badge-red">✗ Liya</span>}
+        {available === true && <span className="input-badge badge-green">✓ Free</span>}
+        {available === false && <span className="input-badge badge-red">✗ Liya</span>}
       </div>
       {username && <p style={{fontSize:11,color:"#C9A0B4",marginBottom:14,marginTop:-10}}>crushdrop.vercel.app/u/{username}</p>}
       <label className="label">Email</label>
-      <input className="input" placeholder="tumhari@email.com" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email"/>
+      <input className="input" placeholder="tumhari@email.com" value={email}
+        onChange={e=>updateField("email", e.target.value)} inputMode="email" autoComplete="email"/>
       <label className="label">Password</label>
-      <input className="input" placeholder="Minimum 6 characters" value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete="new-password"/>
+      <input className="input" placeholder="Minimum 6 characters" value={password}
+        onChange={e=>updateField("password", e.target.value)} type="password" autoComplete="new-password"/>
       {error && <p className="error-text">{error}</p>}
-      <button className="btn btn-primary" onClick={handleSubmit} disabled={loading || !available}>
+      <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
         {loading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Creating...</span> : "Apna link banao 💌"}
       </button>
       <button className="btn btn-ghost" onClick={()=>goTo("login")}>Already account hai? Login karo</button>
