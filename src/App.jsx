@@ -198,6 +198,188 @@ async function shareProfileImage(username) {
 }
 
 // ── Main App ────────────────────────────────────────────────
+
+// ── SignupForm (standalone — keyboard fix) ──────────────────
+function SignupForm({ onSuccess, goTo }) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [available, setAvailable] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (username.length < 3) { setAvailable(null); return; }
+    setChecking(true);
+    const t = setTimeout(() => {
+      checkUsername(username).then(a => { setAvailable(a); setChecking(false); });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [username]);
+
+  const handleSubmit = async () => {
+    if (!username || !email || !password) { setError("Sab fields bharo"); return; }
+    if (!available) { setError("Username already taken"); return; }
+    setLoading(true); setError("");
+    try {
+      const data = await signUp(email, password, username);
+      onSuccess(data.access_token, username.toLowerCase());
+    } catch(e) {
+      setError(e.message || "Signup failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <button className="back-btn" onClick={()=>goTo("landing")}>← Back</button>
+      <div className="wordmark">CrushDrop 💌</div>
+      <h2 style={{marginBottom:6}}>Apna link banao ✨</h2>
+      <p className="sub" style={{marginBottom:20}}>Free mein signup karo — 30 second mein link ready</p>
+      <label className="label">Username choose karo</label>
+      <div className="input-wrap">
+        <input className="input" placeholder="e.g. priya, rahul123" value={username}
+          onChange={e=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
+          autoComplete="off" autoCorrect="off" spellCheck="false" style={{paddingRight:80}}/>
+        {checking && <span className="input-badge" style={{color:"#C9A0B4"}}>...</span>}
+        {!checking && available === true && <span className="input-badge badge-green">✓ Free</span>}
+        {!checking && available === false && <span className="input-badge badge-red">✗ Liya</span>}
+      </div>
+      {username && <p style={{fontSize:11,color:"#C9A0B4",marginBottom:14,marginTop:-10}}>crushdrop.vercel.app/u/{username}</p>}
+      <label className="label">Email</label>
+      <input className="input" placeholder="tumhari@email.com" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email"/>
+      <label className="label">Password</label>
+      <input className="input" placeholder="Minimum 6 characters" value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete="new-password"/>
+      {error && <p className="error-text">{error}</p>}
+      <button className="btn btn-primary" onClick={handleSubmit} disabled={loading || !available}>
+        {loading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Creating...</span> : "Apna link banao 💌"}
+      </button>
+      <button className="btn btn-ghost" onClick={()=>goTo("login")}>Already account hai? Login karo</button>
+    </div>
+  );
+}
+
+// ── LoginForm (standalone — keyboard fix) ───────────────────
+function LoginForm({ onSuccess, goTo }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!email || !password) { setError("Sab fields bharo"); return; }
+    setLoading(true); setError("");
+    try {
+      const data = await signIn(email, password);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${data.user.id}&select=username`, {
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${data.access_token}` },
+      });
+      const profiles = await res.json();
+      const uname = profiles[0]?.username || "";
+      onSuccess(data.access_token, uname);
+    } catch(e) {
+      setError(e.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <button className="back-btn" onClick={()=>goTo("landing")}>← Back</button>
+      <div className="wordmark">CrushDrop 💌</div>
+      <h2 style={{marginBottom:6}}>Wapas aao 💗</h2>
+      <p className="sub" style={{marginBottom:20}}>Login karo aur apne messages dekho</p>
+      <label className="label">Email</label>
+      <input className="input" placeholder="tumhari@email.com" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email"/>
+      <label className="label">Password</label>
+      <input className="input" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete="current-password"/>
+      {error && <p className="error-text">{error}</p>}
+      <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+        {loading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Logging in...</span> : "Login karo 💌"}
+      </button>
+      <button className="btn btn-ghost" onClick={()=>goTo("signup")}>Naya account banao</button>
+    </div>
+  );
+}
+
+
+// ── ProfileForm (standalone — keyboard fix) ─────────────────
+function ProfileForm({ profileData, profileUsername, goTo }) {
+
+  const handleSend = async () => {
+    if (!msgText.trim()) return;
+    setSendingMsg(true); setMsgError("");
+    try {
+      await sendMessage({
+        receiver_name: profileData?.display_name || profileUsername,
+        receiver_contact: profileUsername,
+        message: msgText,
+        sender_name: senderName || null,
+        profile_username: profileUsername.toLowerCase(),
+        reveal_enabled: !!senderName,
+        is_premium: false,
+        delivery_status: "delivered",
+      });
+      setMsgSent(true);
+    } catch(e) {
+      setMsgError("Kuch gadbad ho gayi, dobara try karo");
+    } finally {
+      setSendingMsg(false);
+    }
+  };
+
+  if (!profileData) return (
+    <div className="card">
+      <div className="loading-box"><div style={{fontSize:32,marginBottom:12}}>💌</div><div>Loading...</div></div>
+    </div>
+  );
+
+  if (msgSent) return (
+    <div className="card">
+      <div className="success-box">
+        <div className="success-icon">💌</div>
+        <h2>Message bhej diya!</h2>
+        <p className="sub" style={{marginBottom:20}}>
+          <strong>{profileData.display_name}</strong> ko pata nahi tum kaun ho 😏<br/>
+          Shayad wo bhi tumhe secretly like karta/karti hai...
+        </p>
+        <button className="btn btn-primary" onClick={()=>goTo("signup")}>Apna CrushDrop link banao 💌</button>
+        <p style={{fontSize:12,color:"#C9A0B4",marginTop:10,textAlign:"center"}}>Pata karo koi tumhe bhi like karta hai 👀</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="card">
+      <div className="profile-header">
+        <div className="profile-avatar">💌</div>
+        <div className="profile-username">{profileData.display_name}</div>
+        <div className="profile-link">crushdrop.vercel.app/u/{profileUsername}</div>
+        <div className="tagline" style={{marginBottom:0}}>Send an anonymous confession 👇</div>
+      </div>
+      <label className="label">Tumhara message</label>
+      <textarea className="input"
+        placeholder={`${profileData.display_name} ko kuch kehna hai? Ye tumhara chance hai... 💌`}
+        value={msgText} onChange={e=>setMsgText(e.target.value)}/>
+      <label className="label">Tumhara naam <span style={{color:"#C9A0B4",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional — reveal ke liye)</span></label>
+      <input className="input" placeholder="Apna naam daalo — sirf ₹11 mein reveal hoga"
+        value={senderName} onChange={e=>setSenderName(e.target.value)} autoComplete="off"/>
+      {msgError && <p className="error-text">{msgError}</p>}
+      <button className="btn btn-primary" onClick={handleSend} disabled={sendingMsg || !msgText.trim()}>
+        {sendingMsg ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Sending...</span> : "Send anonymous message 💌"}
+      </button>
+      <div className="divider"/>
+      <div style={{textAlign:"center"}}>
+        <p style={{fontSize:12,color:"#B08898",marginBottom:8}}>Tumhara bhi koi crush hai? 👀</p>
+        <button className="btn btn-ghost" style={{marginTop:0}} onClick={()=>goTo("signup")}>Apna CrushDrop link banao — FREE</button>
+      </div>
+    </div>
+  );
+}
+
 export default function CrushDrop() {
   const urlData = getPageFromUrl();
   const session = getSession();
@@ -208,23 +390,9 @@ export default function CrushDrop() {
   const [myUsername, setMyUsername] = useState(session.username || "");
 
   // Auth forms
-  const [signupUsername, setSignupUsername] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
-  const [signupPassword, setSignupPassword] = useState("");
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [usernameAvailable, setUsernameAvailable] = useState(null);
-  const [checkingUsername, setCheckingUsername] = useState(false);
 
   // Profile page
   const [profileData, setProfileData] = useState(null);
-  const [msgText, setMsgText] = useState("");
-  const [senderName, setSenderName] = useState("");
-  const [sendingMsg, setSendingMsg] = useState(false);
-  const [msgSent, setMsgSent] = useState(false);
-  const [msgError, setMsgError] = useState("");
 
   // Inbox
   const [messages, setMessages] = useState([]);
@@ -250,18 +418,6 @@ export default function CrushDrop() {
     }
   }, [page, token, myUsername]);
 
-  // Username check
-  useEffect(() => {
-    if (signupUsername.length < 3) { setUsernameAvailable(null); return; }
-    setCheckingUsername(true);
-    const timer = setTimeout(() => {
-      checkUsername(signupUsername).then(available => {
-        setUsernameAvailable(available);
-        setCheckingUsername(false);
-      });
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [signupUsername]);
 
   const goTo = (p, uname = "") => {
     setPage(p);
@@ -269,66 +425,8 @@ export default function CrushDrop() {
     window.history.pushState({}, "", p === "landing" ? "/" : p === "profile" ? `/u/${uname}` : `/${p}`);
   };
 
-  const handleSignup = async () => {
-    if (!signupUsername || !signupEmail || !signupPassword) { setAuthError("Sab fields bharo"); return; }
-    if (!usernameAvailable) { setAuthError("Username already taken"); return; }
-    setAuthLoading(true); setAuthError("");
-    try {
-      const data = await signUp(signupEmail, signupPassword, signupUsername);
-      setToken(data.access_token);
-      setMyUsername(signupUsername.toLowerCase());
-      saveSession(data.access_token, signupUsername.toLowerCase());
-      goTo("inbox");
-    } catch(e) {
-      setAuthError(e.message || "Signup failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
-  const handleLogin = async () => {
-    if (!loginEmail || !loginPassword) { setAuthError("Sab fields bharo"); return; }
-    setAuthLoading(true); setAuthError("");
-    try {
-      const data = await signIn(loginEmail, loginPassword);
-      // Get username from profiles
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${data.user.id}&select=username`, {
-        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${data.access_token}` },
-      });
-      const profiles = await res.json();
-      const uname = profiles[0]?.username || "";
-      setToken(data.access_token);
-      setMyUsername(uname);
-      saveSession(data.access_token, uname);
-      goTo("inbox");
-    } catch(e) {
-      setAuthError(e.message || "Login failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
-  const handleSendMessage = async () => {
-    if (!msgText.trim()) return;
-    setSendingMsg(true); setMsgError("");
-    try {
-      await sendMessage({
-        receiver_name: profileData?.display_name || profileUsername,
-        receiver_contact: profileUsername,
-        message: msgText,
-        sender_name: senderName || null,
-        profile_username: profileUsername.toLowerCase(),
-        reveal_enabled: !!senderName,
-        is_premium: false,
-        delivery_status: "delivered",
-      });
-      setMsgSent(true);
-    } catch(e) {
-      setMsgError("Kuch gadbad ho gayi, dobara try karo");
-    } finally {
-      setSendingMsg(false);
-    }
-  };
 
   const handleReveal = async (msgId) => {
     setPaymentLoading(true);
@@ -506,142 +604,17 @@ export default function CrushDrop() {
   );
 
   // ── SIGNUP ───────────────────────────────────────────────
-  const Signup = () => (
-    <div className="card">
-      <button className="back-btn" onClick={()=>goTo("landing")}>← Back</button>
-      <div className="wordmark">CrushDrop 💌</div>
-      <h2 style={{marginBottom:6}}>Apna link banao ✨</h2>
-      <p className="sub" style={{marginBottom:20}}>Free mein signup karo — 30 second mein link ready</p>
-
-      <label className="label">Username choose karo</label>
-      <div className="input-wrap">
-        <input
-          className="input"
-          placeholder="e.g. priya, rahul123"
-          value={signupUsername}
-          onChange={e=>setSignupUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
-          autoComplete="off" autoCorrect="off" spellCheck="false"
-          style={{paddingRight:80}}
-        />
-        {checkingUsername && <span className="input-badge" style={{color:"#C9A0B4"}}>...</span>}
-        {!checkingUsername && usernameAvailable === true && <span className="input-badge badge-green">✓ Free</span>}
-        {!checkingUsername && usernameAvailable === false && <span className="input-badge badge-red">✗ Liya</span>}
-      </div>
-      {signupUsername && <p style={{fontSize:11,color:"#C9A0B4",marginBottom:14,marginTop:-10}}>
-        crushdrop.vercel.app/u/{signupUsername}
-      </p>}
-
-      <label className="label">Email</label>
-      <input className="input" placeholder="tumhari@email.com" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} inputMode="email" autoComplete="email"/>
-
-      <label className="label">Password</label>
-      <input className="input" placeholder="Minimum 6 characters" value={signupPassword} onChange={e=>setSignupPassword(e.target.value)} type="password" autoComplete="new-password"/>
-
-      {authError && <p className="error-text">{authError}</p>}
-
-      <button className="btn btn-primary" onClick={handleSignup} disabled={authLoading || !usernameAvailable}>
-        {authLoading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Creating...</span> : "Apna link banao 💌"}
-      </button>
-      <button className="btn btn-ghost" onClick={()=>goTo("login")}>Already account hai? Login karo</button>
-    </div>
-  );
+  const Signup = () => <SignupForm onSuccess={(token, uname) => {
+    setToken(token); setMyUsername(uname); saveSession(token, uname); goTo("inbox");
+  }} goTo={goTo}/>;
 
   // ── LOGIN ────────────────────────────────────────────────
-  const Login = () => (
-    <div className="card">
-      <button className="back-btn" onClick={()=>goTo("landing")}>← Back</button>
-      <div className="wordmark">CrushDrop 💌</div>
-      <h2 style={{marginBottom:6}}>Wapas aao 💗</h2>
-      <p className="sub" style={{marginBottom:20}}>Login karo aur apne messages dekho</p>
-
-      <label className="label">Email</label>
-      <input className="input" placeholder="tumhari@email.com" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} inputMode="email" autoComplete="email"/>
-
-      <label className="label">Password</label>
-      <input className="input" placeholder="Password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} type="password" autoComplete="current-password"/>
-
-      {authError && <p className="error-text">{authError}</p>}
-
-      <button className="btn btn-primary" onClick={handleLogin} disabled={authLoading}>
-        {authLoading ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Logging in...</span> : "Login karo 💌"}
-      </button>
-      <button className="btn btn-ghost" onClick={()=>goTo("signup")}>Naya account banao</button>
-    </div>
-  );
+  const Login = () => <LoginForm onSuccess={(token, uname) => {
+    setToken(token); setMyUsername(uname); saveSession(token, uname); goTo("inbox");
+  }} goTo={goTo}/>;
 
   // ── PROFILE (public page) ────────────────────────────────
-  const Profile = () => {
-    if (!profileData) return (
-      <div className="card">
-        <div className="loading-box">
-          <div style={{fontSize:32,marginBottom:12}}>💌</div>
-          <div>Loading...</div>
-        </div>
-      </div>
-    );
-
-    if (msgSent) return (
-      <div className="card">
-        <div className="success-box">
-          <div className="success-icon">💌</div>
-          <h2>Message bhej diya!</h2>
-          <p className="sub" style={{marginBottom:20}}>
-            <strong>{profileData.display_name}</strong> ko pata nahi tum kaun ho 😏<br/>
-            Shayad wo bhi tumhe secretly like karta/karti hai...
-          </p>
-          <button className="btn btn-primary" onClick={()=>goTo("signup")}>
-            Apna CrushDrop link banao 💌
-          </button>
-          <p style={{fontSize:12,color:"#C9A0B4",marginTop:10,textAlign:"center"}}>
-            Pata karo koi tumhe bhi like karta hai 👀
-          </p>
-        </div>
-      </div>
-    );
-
-    return (
-      <div className="card">
-        <div className="profile-header">
-          <div className="profile-avatar">💌</div>
-          <div className="profile-username">{profileData.display_name}</div>
-          <div className="profile-link">crushdrop.vercel.app/u/{profileUsername}</div>
-          <div className="tagline" style={{marginBottom:0}}>Send an anonymous confession 👇</div>
-        </div>
-
-        <label className="label">Tumhara message</label>
-        <textarea
-          className="input"
-          placeholder={`${profileData.display_name} ko kuch kehna hai? Ye tumhara chance hai... 💌`}
-          value={msgText}
-          onChange={e=>setMsgText(e.target.value)}
-        />
-
-        <label className="label">Tumhara naam <span style={{color:"#C9A0B4",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional — reveal ke liye)</span></label>
-        <input
-          className="input"
-          placeholder="Apna naam daalo — sirf ₹11 mein reveal hoga"
-          value={senderName}
-          onChange={e=>setSenderName(e.target.value)}
-          autoComplete="off"
-        />
-
-        {msgError && <p className="error-text">{msgError}</p>}
-
-        <button className="btn btn-primary" onClick={handleSendMessage} disabled={sendingMsg || !msgText.trim()}>
-          {sendingMsg ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span className="spinner"/>Sending...</span> : "Send anonymous message 💌"}
-        </button>
-
-        <div className="divider"/>
-
-        <div style={{textAlign:"center"}}>
-          <p style={{fontSize:12,color:"#B08898",marginBottom:8}}>Tumhara bhi koi crush hai? 👀</p>
-          <button className="btn btn-ghost" style={{marginTop:0}} onClick={()=>goTo("signup")}>
-            Apna CrushDrop link banao — FREE
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const Profile = () => <ProfileForm profileData={profileData} profileUsername={profileUsername} goTo={goTo}/>;
 
   // ── INBOX ────────────────────────────────────────────────
   const Inbox = () => {
