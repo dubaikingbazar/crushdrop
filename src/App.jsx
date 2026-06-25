@@ -13,18 +13,24 @@ async function signUp(email, password, username) {
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message || data.msg);
-  // Create profile
-  await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_ANON_KEY,
-      "Authorization": `Bearer ${data.access_token}`,
-      "Prefer": "return=representation",
-    },
-    body: JSON.stringify({ username: username.toLowerCase(), display_name: username, user_id: data.user.id }),
-  });
-  return data;
+  
+  const token = data.access_token || data.session?.access_token;
+  const userId = data.user?.id || data.id;
+  
+  if (token && userId) {
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${token}`,
+        "Prefer": "return=representation",
+      },
+      body: JSON.stringify({ username: username.toLowerCase(), display_name: username, user_id: userId }),
+    });
+  }
+  
+  return { ...data, access_token: token, user: { ...data.user, id: userId } };
 }
 
 async function signIn(email, password) {
@@ -623,9 +629,14 @@ export default function CrushDrop() {
 
   // ── INBOX ────────────────────────────────────────────────
   const Inbox = () => {
-    if (!token) {
-      goTo("login");
-      return null;
+    if (!token || !myUsername) {
+      return (
+        <div className="card" style={{textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:12}}>💌</div>
+          <p style={{color:"#B08898",marginBottom:16}}>Session expire ho gayi</p>
+          <button className="btn btn-primary" onClick={()=>goTo("login")}>Login karo</button>
+        </div>
+      );
     }
 
     const myLink = `${APP_URL}/u/${myUsername}`;
